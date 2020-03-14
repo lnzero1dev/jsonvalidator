@@ -1,0 +1,19 @@
+{
+    "package": {
+        "jsonvalidator": {
+            "type": "executable",
+            "machine": [
+                "host",
+                "target"
+            ],
+            "source": [
+                "src/main.cpp"
+            ],
+            "dependency": [
+                "AK",
+                "LibCore",
+                "LibJsonValidator"
+            ]
+        }
+    }
+}
