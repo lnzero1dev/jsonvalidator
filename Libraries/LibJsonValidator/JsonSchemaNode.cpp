@@ -187,7 +187,19 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
 
-    // FIXME: Implement checks for numbers
+    if (m_minimum.has_value()) {
+        if (json.to_number<float>() <= m_minimum.value()) {
+            e.addf("Minimum invalid: value is %f, allowed is: %f", json.to_number<float>(), m_minimum.value());
+            valid = false;
+        }
+    }
+
+    if (m_maximum.has_value()) {
+        if (json.to_number<float>() >= m_maximum.value()) {
+            e.addf("Maximum invalid: value is %f, allowed is: %f", json.to_number<float>(), m_maximum.value());
+            valid = false;
+        }
+    }
 
     return valid;
 }
