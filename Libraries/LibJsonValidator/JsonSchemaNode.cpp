@@ -33,6 +33,8 @@
 
 namespace JsonValidator {
 
+JsonSchemaNode::~JsonSchemaNode() {}
+
 static void print_indent(int indent)
 {
     for (int i = 0; i < indent * 2; ++i)
@@ -60,6 +62,14 @@ void JsonSchemaNode::dump(int indent, String additional) const
 {
     print_indent(indent);
     printf("%s (%s%s%s)\n", m_id.characters(), class_name(), m_required ? " *" : "", additional.characters());
+
+    if (m_all_of.size()) {
+        print_indent(indent + 1);
+        printf("allOf:\n");
+        for (auto& item : m_all_of) {
+            item.dump(indent + 2);
+        }
+    }
 }
 
 void ObjectNode::dump(int indent, String = "") const
@@ -135,7 +145,12 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
         return false;
     }
 
-    return true;
+    // run all checks of "allOf" on this node
+    bool valid = true;
+    for (auto& item : m_all_of) {
+        valid &= item.validate(json, e);
+    }
+    return valid;
 }
 
 bool StringNode::validate(const JsonValue& json, ValidationError& e) const

@@ -54,7 +54,7 @@ String to_string(InstanceType type);
 
 class JsonSchemaNode {
 public:
-    virtual ~JsonSchemaNode() {}
+    virtual ~JsonSchemaNode();
     virtual const char* class_name() const = 0;
     virtual void dump(int indent, String additional = "") const;
 
@@ -94,6 +94,11 @@ public:
             perror("regcomp");
         }
 #endif
+    }
+
+    void append_all_of(NonnullOwnPtr<JsonSchemaNode>&& node)
+    {
+        m_all_of.append(move(node));
     }
 
     bool identified_by_pattern() const { return m_identified_by_pattern; }
@@ -161,6 +166,8 @@ private:
     regex_t m_pattern_regex;
 #endif
     JsonSchemaNode* m_parent;
+
+    NonnullOwnPtrVector<JsonSchemaNode> m_all_of;
 };
 
 class StringNode : public JsonSchemaNode {

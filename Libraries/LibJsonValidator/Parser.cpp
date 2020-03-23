@@ -103,6 +103,27 @@ void Parser::add_parser_error(String error)
     m_parser_errors.append(error);
 }
 
+void Parser::parse_all_of(const JsonObject& json_object, JsonSchemaNode* node)
+{
+
+    if (json_object.has("allOf")) {
+        auto allof = json_object.get_or("allOf", JsonArray());
+        if (!allof.is_array()) {
+            StringBuilder b;
+            b.appendf("items value is not a json array, it is: %s", allof.to_string().characters());
+            add_parser_error(b.build());
+            return;
+        }
+
+        JsonArray allof_array = allof.as_array();
+        for (auto& item : allof_array.values()) {
+            OwnPtr<JsonSchemaNode> child_node = get_typed_node(item, node);
+            if (child_node)
+                node->append_all_of(child_node.release_nonnull());
+        }
+    }
+}
+
 OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonSchemaNode* parent)
 {
     OwnPtr<JsonSchemaNode> node;
@@ -246,8 +267,11 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 add_parser_error(b.build());
             }
         }
-    }
 
+        if (node) {
+            parse_all_of(json_object, node);
+        }
+    }
     return move(node);
 }
 }

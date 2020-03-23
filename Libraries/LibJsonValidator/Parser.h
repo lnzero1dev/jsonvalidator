@@ -48,6 +48,8 @@ private:
     OwnPtr<JsonSchemaNode> m_root_node;
     OwnPtr<JsonSchemaNode> get_typed_node(const JsonValue&, JsonSchemaNode* parent = nullptr);
 
+    void parse_all_of(const JsonObject& json_object, JsonSchemaNode* node);
+
     void add_parser_error(String);
     Vector<String> m_parser_errors;
 };
