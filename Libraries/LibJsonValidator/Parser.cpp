@@ -138,8 +138,13 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             if (child_node)
                 array_node.append_item(child_node.release_nonnull());
         }
+
     } else if (json_value.is_bool()) {
         node = make<BooleanNode>(parent, "", json_value.as_bool());
+
+    } else if (json_value.is_null()) {
+        node = make<NullNode>(parent, "");
+
     } else if (json_value.is_object()) {
         JsonObject json_object = json_value.as_object();
         JsonValue id = json_object.get("$id");

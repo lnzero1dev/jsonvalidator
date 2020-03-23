@@ -42,7 +42,8 @@ namespace JsonValidator {
 class ValidationError;
 
 enum class InstanceType : u8 {
-    //Null,
+    Undefined,
+    Null,
     Boolean,
     Object,
     Array,
@@ -223,6 +224,34 @@ private:
     virtual const char* class_name() const override { return "BooleanNode"; }
 
     bool m_value;
+};
+
+class NullNode : public JsonSchemaNode {
+public:
+    NullNode(JsonSchemaNode* parent, String id)
+        : JsonSchemaNode(parent, id, InstanceType::Null)
+    {
+    }
+
+    virtual void dump(int indent, String additional) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
+
+private:
+    virtual const char* class_name() const override { return "NullNode"; }
+};
+
+class UndefinedNode : public JsonSchemaNode {
+public:
+    UndefinedNode(JsonSchemaNode* parent)
+        : JsonSchemaNode(parent, "", InstanceType::Undefined)
+    {
+    }
+
+    virtual void dump(int indent, String additional) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
+
+private:
+    virtual const char* class_name() const override { return "UndefinedNode"; }
 };
 
 class ObjectNode : public JsonSchemaNode {

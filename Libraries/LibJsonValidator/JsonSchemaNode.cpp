@@ -54,6 +54,10 @@ String to_string(InstanceType type)
         return "number";
     case InstanceType::Boolean:
         return "boolean";
+    case InstanceType::Undefined:
+        return "undefined";
+    case InstanceType::Null:
+        return "null";
     }
     return "";
 }
@@ -106,6 +110,16 @@ void BooleanNode::dump(int indent, String = "") const
     JsonSchemaNode::dump(indent);
 }
 
+void NullNode::dump(int indent, String = "") const
+{
+    JsonSchemaNode::dump(indent);
+}
+
+void UndefinedNode::dump(int indent, String = "") const
+{
+    JsonSchemaNode::dump(indent);
+}
+
 bool validate_type(InstanceType type, const JsonValue& json)
 {
     if (type == InstanceType::Array && json.is_array())
@@ -120,8 +134,15 @@ bool validate_type(InstanceType type, const JsonValue& json)
     else if (type == InstanceType::Number && json.is_number())
         return true;
 
+    else if (type == InstanceType::Null && json.is_null())
+        return true;
+
     else if (type == InstanceType::Boolean)
         // boolean type matches always! validation checks for true/false of boolean value.
+        return true;
+
+    else if (type == InstanceType::Undefined)
+        // we don't know the type and assume it's ok
         return true;
 
     return false;
@@ -176,6 +197,16 @@ bool BooleanNode::validate(const JsonValue& json, ValidationError& e) const
     bool valid = JsonSchemaNode::validate(json, e);
 
     return valid & m_value;
+}
+
+bool NullNode::validate(const JsonValue& json, ValidationError& e) const
+{
+    return JsonSchemaNode::validate(json, e);
+}
+
+bool UndefinedNode::validate(const JsonValue& json, ValidationError& e) const
+{
+    return JsonSchemaNode::validate(json, e);
 }
 
 String JsonSchemaNode::path() const
