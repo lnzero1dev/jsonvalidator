@@ -45,6 +45,14 @@ TEST_CASE(additionalProperties)
     execute(fp);
 }
 
+TEST_CASE(allOf)
+{
+    FILE* fp = fopen("draft2019-09/allOf.json", "r");
+    ASSERT(fp);
+
+    execute(fp);
+}
+
 TEST_MAIN(JsonSchemas)
 
 inline void execute(FILE* fp)
