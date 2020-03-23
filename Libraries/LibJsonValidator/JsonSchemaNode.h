@@ -199,6 +199,16 @@ public:
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
 
+    void set_minimum(float value)
+    {
+        m_minimum = value;
+    }
+
+    void set_maximum(float value)
+    {
+        m_maximum = value;
+    }
+
 private:
     virtual const char* class_name() const override { return "NumberNode"; }
 
