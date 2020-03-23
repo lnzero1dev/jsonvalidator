@@ -32,13 +32,45 @@
 
 namespace JsonValidator {
 
+class ValidationError {
+public:
+    ValidationError();
+    ~ValidationError();
+
+    void add(const String& error)
+    {
+        m_errors.append(error);
+    }
+
+    template<class... Args>
+    void addf(const char* fmt, Args... args)
+    {
+        StringBuilder b;
+        b.appendf(fmt, forward<Args>(args)...);
+        add(b.build());
+    }
+
+    const Vector<String>& errors() const { return m_errors; }
+
+    bool has_error() const { return m_errors.size(); }
+
+private:
+    Vector<String> m_errors;
+};
+
+struct ValidationResult {
+    ValidationError e;
+    bool success;
+};
+
 class Validator {
 public:
     Validator();
     ~Validator();
 
-    JsonValue run(const JsonSchemaNode&, const FILE* fd);
-    JsonValue run(const JsonSchemaNode&, const String file_name);
-    JsonValue run(const JsonSchemaNode&, const JsonValue& json);
+    ValidationResult run(const JsonSchemaNode&, const FILE* fd);
+    ValidationResult run(const JsonSchemaNode&, const String file_name);
+    ValidationResult run(const JsonSchemaNode&, const JsonValue& json);
 };
+
 }

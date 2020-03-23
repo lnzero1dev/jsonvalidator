@@ -28,6 +28,7 @@
 #include <AK/JsonValue.h>
 #include <LibJsonValidator/JsonSchemaNode.h>
 #include <LibJsonValidator/Parser.h>
+#include <LibJsonValidator/Validator.h>
 #include <stdio.h>
 
 namespace JsonValidator {
@@ -116,7 +117,7 @@ bool validate_type(InstanceType type, const JsonValue& json)
     return false;
 }
 
-JsonValue JsonSchemaNode::validate(const JsonValue& json) const
+bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
 {
 #ifdef JSON_SCHEMA_DEBUG
     printf("Validating node: %s (%s)\n", m_id.characters(), class_name());
@@ -124,66 +125,42 @@ JsonValue JsonSchemaNode::validate(const JsonValue& json) const
 
     // check if type is matching
     if (!validate_type(m_type, json)) {
-        StringBuilder b;
-        b.appendf("type validation failed: %s checking for: %s", json.to_string().characters(), to_string(m_type).characters());
-        return JsonValue(b.build());
+        e.addf("type validation failed: have '%s', but looking for node with type '%s'", json.to_string().characters(), to_string(m_type).characters());
+        return false;
     }
 
     // check if required is matching
-    if (m_required && (json.is_null() || json.is_undefined()))
-        return JsonValue("item is required, but is not present");
+    if (m_required && json.is_undefined()) {
+        e.addf("item %s is required, but is not present (json: %s)", path().characters(), json.to_string().characters());
+        return false;
+    }
 
-    return JsonValue(true);
+    return true;
 }
 
-JsonValue StringNode::validate(const JsonValue& json) const
+bool StringNode::validate(const JsonValue& json, ValidationError& e) const
 {
-    JsonValue res = JsonSchemaNode::validate(json);
+    bool valid = JsonSchemaNode::validate(json, e);
 
     // FIXME: Implement checks for strings
 
-    return res;
+    return valid;
 }
 
-JsonValue NumberNode::validate(const JsonValue& json) const
+bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
 {
-    JsonValue res = JsonSchemaNode::validate(json);
+    bool valid = JsonSchemaNode::validate(json, e);
 
     // FIXME: Implement checks for numbers
 
-    return res;
+    return valid;
 }
 
-JsonValue BooleanNode::validate(const JsonValue& json) const
+bool BooleanNode::validate(const JsonValue& json, ValidationError& e) const
 {
-    JsonValue res = JsonSchemaNode::validate(json);
+    bool valid = JsonSchemaNode::validate(json, e);
 
-    if (!res.is_bool())
-        return res;
-
-    return JsonValue((res.as_bool() & m_value) == true);
-}
-
-JsonValue merge_results(JsonArray values)
-{
-
-    JsonArray result;
-    bool boolean_result { true };
-
-    for (auto& item : values.values()) {
-        if (item.is_bool())
-            boolean_result &= item.as_bool();
-        else
-            result.append(item);
-    }
-
-    if (result.values().size()) {
-        if (result.values().size() == 1)
-            return JsonValue(result.at(0));
-        else
-            return result;
-    }
-    return JsonValue(boolean_result);
+    return valid & m_value;
 }
 
 String JsonSchemaNode::path() const
@@ -207,15 +184,13 @@ String JsonSchemaNode::path() const
     return b.build();
 }
 
-JsonValue ObjectNode::validate(const JsonValue& json) const
+bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
 {
-    JsonArray res;
-    res.append(JsonSchemaNode::validate(json));
+    bool valid = JsonSchemaNode::validate(json, e);
 
     if (!json.is_object()) {
-        StringBuilder b;
-        b.appendf("json is not object: %s", json.to_string().characters());
-        return JsonValue(b.build());
+        e.addf("json is not object: %s", json.to_string().characters());
+        return false;
     }
 
 #ifdef JSON_SCHEMA_DEBUG
@@ -249,7 +224,7 @@ JsonValue ObjectNode::validate(const JsonValue& json) const
 #endif
             if (matched.size()) {
                 for (auto& match : matched) {
-                    res.append(property.value->validate(json.as_object().get(match)));
+                    valid &= property.value->validate(json.as_object().get(match), e);
                 }
             }
 
@@ -257,7 +232,7 @@ JsonValue ObjectNode::validate(const JsonValue& json) const
 #ifdef JSON_SCHEMA_DEBUG
             printf("Validating property %s.\n", property.key.characters());
 #endif
-            res.append(property.value->validate(json.as_object().get(property.key)));
+            valid &= property.value->validate(json.as_object().get(property.key), e);
 
             auto index = json_property_keys.find_first_index(property.key);
             if (index.has_value())
@@ -267,9 +242,8 @@ JsonValue ObjectNode::validate(const JsonValue& json) const
                 printf("error: could not remove key from vector\n");
 #endif
         } else if (property.value->required()) {
-            StringBuilder b;
-            b.appendf("required value %s not found at %s", property.key.characters(), property.value->path().characters());
-            return JsonValue(b.build());
+            e.addf("required value %s not found at %s", property.key.characters(), property.value->path().characters());
+            return false;
         }
     }
 
@@ -280,16 +254,16 @@ JsonValue ObjectNode::validate(const JsonValue& json) const
         props_builder.join<String, Vector<String>>(", ", json_property_keys);
 
         props_builder.append("\", but not allowed due to additionalProperties");
-        return JsonValue(props_builder.build());
+        e.add(props_builder.build());
+        return false;
     }
 
-    return merge_results(res);
+    return valid;
 }
 
-JsonValue ArrayNode::validate(const JsonValue& json) const
+bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
 {
-    JsonArray res;
-    res.append(JsonSchemaNode::validate(json));
+    bool valid = JsonSchemaNode::validate(json, e);
 
     if (!json.is_array())
         return true; // ignore non array types...
@@ -297,10 +271,14 @@ JsonValue ArrayNode::validate(const JsonValue& json) const
     auto& values = json.as_array().values();
 
     // validate min and max items
-    if (values.size() < m_min_items)
-        return JsonValue("minItems violation");
-    if (m_max_items.has_value() && values.size() > m_max_items.value())
-        return JsonValue("maxItems violation");
+    if (values.size() < m_min_items) {
+        e.add("minItems violation");
+        return false;
+    }
+    if (m_max_items.has_value() && values.size() > m_max_items.value()) {
+        e.add("maxItems violation");
+        return false;
+    }
 
     // validate each json array element against the items spec
     HashMap<u32, bool> hashes;
@@ -310,27 +288,28 @@ JsonValue ArrayNode::validate(const JsonValue& json) const
         // check for duplicate hash of array item
         if (m_unique_items) {
             auto hash = value.to_string().impl()->hash();
-            if (hashes.get(hash).has_value())
-                return JsonValue("duplicate item found, but not allowed due to uniqueItems");
-            else
+            if (hashes.get(hash).has_value()) {
+                e.add("duplicate item found, but not allowed due to uniqueItems");
+                return false;
+            } else
                 hashes.set(hash, true);
         }
 
         if (m_items_is_array) {
             if (m_items.size() > i) {
-                res.append(m_items.at(i).validate(value));
+                valid &= m_items.at(i).validate(value, e);
             } else {
                 if (m_additional_items)
-                    res.append(m_additional_items->validate(value));
+                    valid &= m_additional_items->validate(value, e);
             }
         } else {
             if (m_items.size()) {
-                res.append(m_items.at(0).validate(value));
+                valid &= m_items.at(0).validate(value, e);
             }
         }
     }
 
-    return merge_results(res);
+    return valid;
 }
 
 }

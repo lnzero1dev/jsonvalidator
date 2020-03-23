@@ -83,26 +83,15 @@ int main(int argc, char** argv)
     auto json_file_content = JsonValue::from_string(json_file->read_all());
 
     JsonValidator::Validator validator;
-    JsonValue validator_result = validator.run(*parser.root_node(), json_file_content);
+    JsonValidator::ValidationResult r = validator.run(*parser.root_node(), json_file_content);
 
-    if (validator_result.is_bool() && validator_result.as_bool()) {
+    if (r.success) {
         fprintf(stdout, "Validation sucessfull.\n\n");
 
     } else {
-        if (validator_result.is_object())
-            fprintf(stderr, "Validator returned error: %s\n",
-                validator_result.as_object().get("message").as_string_or("").characters());
-        else if (validator_result.is_array()) {
-            fprintf(stderr, "Validator returned errors:\n");
-            for (auto& value : validator_result.as_array().values())
-                if (value.is_string())
-                    fprintf(stderr, "%s\n", value.as_string().characters());
-                else
-                    fprintf(stderr, "Value is not string, but %s\n", value.to_string().characters());
-        } else if (validator_result.is_string())
-            fprintf(stderr, "Validator returned error: %s\n",
-                validator_result.as_string().characters());
-
+        fprintf(stderr, "Validator returned errors:\n");
+        for (auto& value : r.e.errors())
+            fprintf(stderr, "%s\n", value.characters());
         return 1;
     }
 

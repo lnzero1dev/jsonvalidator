@@ -39,6 +39,8 @@
 #endif
 namespace JsonValidator {
 
+class ValidationError;
+
 enum class InstanceType : u8 {
     //Null,
     Boolean,
@@ -56,7 +58,7 @@ public:
     virtual const char* class_name() const = 0;
     virtual void dump(int indent, String additional = "") const;
 
-    virtual JsonValue validate(const JsonValue&) const;
+    virtual bool validate(const JsonValue&, ValidationError& e) const;
 
     void set_default_value(JsonValue default_value)
     {
@@ -169,7 +171,7 @@ public:
     }
 
     virtual void dump(int indent, String additional) const override;
-    virtual JsonValue validate(const JsonValue&) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
 
 private:
     virtual const char* class_name() const override { return "StringNode"; }
@@ -187,7 +189,7 @@ public:
     }
 
     virtual void dump(int indent, String additional) const override;
-    virtual JsonValue validate(const JsonValue&) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
 
 private:
     virtual const char* class_name() const override { return "NumberNode"; }
@@ -208,7 +210,7 @@ public:
     }
 
     virtual void dump(int indent, String additional) const override;
-    virtual JsonValue validate(const JsonValue&) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
 
 private:
     virtual const char* class_name() const override { return "BooleanNode"; }
@@ -234,7 +236,7 @@ public:
     }
 
     virtual void dump(int indent, String additional) const override;
-    virtual JsonValue validate(const JsonValue&) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
 
     void append_required(String required)
     {
@@ -288,7 +290,7 @@ public:
     }
 
     virtual void dump(int indent, String additional) const override;
-    virtual JsonValue validate(const JsonValue&) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
 
     const NonnullOwnPtrVector<JsonSchemaNode>& items() { return m_items; }
     void append_item(NonnullOwnPtr<JsonSchemaNode>&& item) { m_items.append(move(item)); }

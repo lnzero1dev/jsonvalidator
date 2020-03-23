@@ -31,6 +31,7 @@
 #include <AK/JsonValue.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <LibJsonValidator/JsonSchemaNode.h>
 #include <LibJsonValidator/Parser.h>
 #include <LibJsonValidator/Validator.h>
 
@@ -74,8 +75,8 @@ inline void execute(FILE* fp)
 
         printf("CASE \"%s\":\n", item_obj.get("description").as_string().characters());
         printf("==============================\n");
-
-        JsonValue res = parser.run(item_obj.get("schema"));
+        auto schema = item_obj.get("schema");
+        JsonValue res = parser.run(schema);
 #ifdef JSON_SCHEMA_TEST_DEBUG
         if (!(res.is_bool() && res.as_bool()))
             printf("Parser result: %s\n", res.to_string().characters());
@@ -98,25 +99,34 @@ inline void execute(FILE* fp)
 
             EXPECT(parser.root_node() != nullptr);
 
-            if (parser.root_node())
-                res = validator.run(*parser.root_node(), test_item_obj.get("data"));
+            if (!parser.root_node()) {
 #ifdef JSON_SCHEMA_TEST_DEBUG
-            else {
                 printf("Parser has no root node. JSON data:\n%s\n", item.to_string().characters());
                 fflush(stdout);
-            }
 #endif
+                continue;
+            }
+
+            JsonValidator::ValidationResult vr = validator.run(*parser.root_node(), test_item_obj.get("data"));
 
             bool valid = test_item_obj.get("valid").as_bool();
-            if (valid == (res.is_bool() && res.as_bool()))
+            if (valid == vr.success)
                 printf("✔\n");
             else {
                 printf("✘\n");
+
 #ifdef JSON_SCHEMA_TEST_DEBUG
-                printf("Validator result: %s\n", res.to_string().characters());
+                for (auto& err : vr.e.errors()) {
+                    printf("[E] %s\n", err.characters());
+                }
+
+                printf("Schema json: %s\n", schema.to_string().characters());
+                printf("Schema tree:\n");
+                parser.root_node().ptr()->dump(0);
 #endif
             }
-            EXPECT(valid == (res.is_bool() && res.as_bool()));
+
+            EXPECT(valid == vr.success);
         }
         printf("\n");
     }

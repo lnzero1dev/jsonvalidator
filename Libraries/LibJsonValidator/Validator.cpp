@@ -30,6 +30,9 @@
 
 namespace JsonValidator {
 
+ValidationError::ValidationError() {}
+ValidationError::~ValidationError() {}
+
 Validator::Validator()
 {
 }
@@ -38,19 +41,20 @@ Validator::~Validator()
 {
 }
 
-JsonValue Validator::run(const JsonSchemaNode& node, const String filename)
+ValidationResult Validator::run(const JsonSchemaNode& node, const String filename)
 {
+    ValidationError e;
     auto schema_file = Core::File::construct(filename);
     if (!schema_file->open(Core::IODevice::ReadOnly)) {
-        fprintf(stderr, "Couldn't open %s for reading: %s\n", filename.characters(), schema_file->error_string());
-        return false;
+        e.addf("Couldn't open %s for reading: %s\n", filename.characters(), schema_file->error_string());
+        return { e, false };
     }
     JsonValue json = JsonValue::from_string(schema_file->read_all());
 
     return run(node, json);
 }
 
-JsonValue Validator::run(const JsonSchemaNode& node, const FILE* fd)
+ValidationResult Validator::run(const JsonSchemaNode& node, const FILE* fd)
 {
     StringBuilder builder;
     for (;;) {
@@ -65,13 +69,14 @@ JsonValue Validator::run(const JsonSchemaNode& node, const FILE* fd)
     return run(node, json);
 }
 
-JsonValue Validator::run(const JsonSchemaNode& node, const JsonValue& json)
+ValidationResult Validator::run(const JsonSchemaNode& node, const JsonValue& json)
 {
 #ifdef JSON_SCHEMA_DEBUG
     printf("Run Validator on node: %lu\n", reinterpret_cast<intptr_t>(&node));
 #endif
-
-    return JsonValue(node.validate(json));
+    ValidationError e;
+    bool valid = node.validate(json, e);
+    return { e, valid };
 }
 
 }
