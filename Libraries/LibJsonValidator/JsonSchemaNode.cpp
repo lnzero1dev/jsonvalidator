@@ -226,6 +226,9 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
 
+    if (m_is_integer && !(json.is_i32() || json.is_i64() || json.is_u32() || json.is_u64()))
+        valid = false;
+
     if (m_minimum.has_value()) {
         if (json.to_number<float>() <= m_minimum.value()) {
             e.addf("Minimum invalid: value is %f, allowed is: %f", json.to_number<float>(), m_minimum.value());

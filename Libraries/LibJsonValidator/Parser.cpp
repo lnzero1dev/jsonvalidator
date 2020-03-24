@@ -172,6 +172,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
             node = make<NumberNode>(parent, id.as_string_or(""));
             NumberNode& number_node = *static_cast<NumberNode*>(node.ptr());
+            if (type_str == "integer") {
+                number_node.set_is_integer();
+            }
 
             if (json_object.has("minimum")) {
                 number_node.set_minimum(json_object.get("minimum").to_number<float>());

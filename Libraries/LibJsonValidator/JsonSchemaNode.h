@@ -218,15 +218,9 @@ public:
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
 
-    void set_minimum(float value)
-    {
-        m_minimum = value;
-    }
-
-    void set_maximum(float value)
-    {
-        m_maximum = value;
-    }
+    void set_minimum(float value) { m_minimum = value; }
+    void set_maximum(float value) { m_maximum = value; }
+    void set_is_integer() { m_is_integer = true; }
 
 private:
     virtual const char* class_name() const override { return "NumberNode"; }
@@ -236,6 +230,7 @@ private:
     Optional<float> m_exclusive_maximum;
     Optional<float> m_minimum;
     Optional<float> m_exclusive_minimum;
+    bool m_is_integer { false };
 };
 
 class BooleanNode : public JsonSchemaNode {
