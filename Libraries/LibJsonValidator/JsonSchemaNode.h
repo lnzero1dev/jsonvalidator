@@ -181,12 +181,31 @@ public:
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
 
+    void set_pattern(const String& pattern)
+    {
+        printf("Set pattern: %s\n", pattern.characters());
+        m_pattern = pattern;
+#ifndef __serenity__
+        if (regcomp(&m_pattern_regex, pattern.characters(), REG_EXTENDED)) {
+            perror("regcomp");
+        }
+#endif
+    }
+    void set_max_length(i32 max_length) { m_max_length = max_length; }
+    void set_min_length(i32 min_length) { m_min_length = min_length; }
+
+    bool match_against_pattern(const String value) const;
+
 private:
     virtual const char* class_name() const override { return "StringNode"; }
 
     Optional<u32> m_max_length;
     Optional<u32> m_min_length;
     Optional<String> m_pattern;
+
+#ifndef __serenity__
+    regex_t m_pattern_regex;
+#endif
 };
 
 class NumberNode : public JsonSchemaNode {

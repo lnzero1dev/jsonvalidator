@@ -178,9 +178,48 @@ bool StringNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
 
-    // FIXME: Implement checks for strings
+    if (json.is_string()) {
+        auto value = json.as_string();
+
+        if (m_pattern.has_value()) {
+            valid &= match_against_pattern(value);
+        }
+
+        if (m_max_length.has_value()) {
+            valid &= !(value.length() > m_max_length.value());
+        }
+
+        if (m_min_length.has_value()) {
+            valid &= !(value.length() <= m_min_length.value());
+        }
+    } else if (m_pattern.has_value()) {
+        return true; // non-strings are ignored for pattern!
+    }
 
     return valid;
+}
+
+bool StringNode::match_against_pattern(const String value) const
+{
+#ifdef __serenity__
+    UNUSED_PARAM(value);
+    if (m_pattern == "^.*$") {
+        // FIXME: Match everything, to be replaced with below code from else case when
+        // posix pattern matching implemented
+        return true;
+    }
+#else
+    int reti = regexec(&m_pattern_regex, value.characters(), 0, NULL, 0);
+    if (!reti) {
+        return true;
+    } else if (reti == REG_NOMATCH) {
+    } else {
+        char buf[100];
+        regerror(reti, &m_pattern_regex, buf, sizeof(buf));
+        fprintf(stderr, "Regex match failed: %s\n", buf);
+    }
+#endif
+    return false;
 }
 
 bool NumberNode::validate(const JsonValue& json, ValidationError& e) const

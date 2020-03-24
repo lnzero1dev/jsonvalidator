@@ -70,6 +70,11 @@ JsonValue Parser::run(const String filename)
 
 JsonValue Parser::run(const JsonValue& json)
 {
+    if (json.is_bool()) {
+        m_root_node = make<BooleanNode>(nullptr, "", json.as_bool());
+        return JsonValue(true);
+    }
+
     if (!json.is_object()) {
         add_parser_error("root json instance not of type object");
     }
@@ -223,12 +228,36 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             }
 
         } else if (type_str == "string"
-            || json_object.has("maxLenght")
-            || json_object.has("minLenght")
+            || json_object.has("maxLength")
+            || json_object.has("minLength")
             || json_object.has("pattern")) {
 
             node = make<StringNode>(parent, id.as_string_or(""));
 
+            auto pattern = json_object.get("pattern");
+            if (!pattern.is_undefined()) {
+                if (!pattern.is_string()) {
+                    add_parser_error("pattern value is not a json string");
+                } else {
+                    static_cast<StringNode*>(node.ptr())->set_pattern(pattern.as_string());
+                }
+            }
+            auto minLength = json_object.get("minLength");
+            if (!minLength.is_undefined()) {
+                if (!(minLength.is_u32() || minLength.is_u64())) {
+                    add_parser_error("minLength value is not a non-negative integer");
+                } else {
+                    static_cast<StringNode*>(node.ptr())->set_min_length(minLength.to_u32());
+                }
+            }
+            auto maxLength = json_object.get("maxLength");
+            if (!maxLength.is_undefined()) {
+                if (!(maxLength.is_u32() || maxLength.is_u64())) {
+                    add_parser_error("maxLength value is not a non-negative integer");
+                } else {
+                    static_cast<StringNode*>(node.ptr())->set_max_length(maxLength.to_u32());
+                }
+            }
         } else {
 
             if (json_object.is_empty()) {

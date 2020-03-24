@@ -41,7 +41,6 @@ TEST_CASE(additionalProperties)
 {
     FILE* fp = fopen("draft2019-09/additionalItems.json", "r");
     ASSERT(fp);
-
     execute(fp);
 }
 
@@ -49,7 +48,20 @@ TEST_CASE(allOf)
 {
     FILE* fp = fopen("draft2019-09/allOf.json", "r");
     ASSERT(fp);
+    execute(fp);
+}
 
+TEST_CASE(boolean_schema)
+{
+    FILE* fp = fopen("draft2019-09/boolean_schema.json", "r");
+    ASSERT(fp);
+    execute(fp);
+}
+
+TEST_CASE(pattern)
+{
+    FILE* fp = fopen("draft2019-09/pattern.json", "r");
+    ASSERT(fp);
     execute(fp);
 }
 
