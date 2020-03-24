@@ -24,6 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <AK/Function.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibCore/File.h>
@@ -108,23 +109,25 @@ void Parser::add_parser_error(String error)
     m_parser_errors.append(error);
 }
 
-void Parser::parse_all_of(const JsonObject& json_object, JsonSchemaNode* node)
+void Parser::parse_sub_schema(const String& property,
+    const JsonObject& json_object,
+    JsonSchemaNode* node,
+    Function<void(NonnullOwnPtr<JsonSchemaNode>&&)> callback)
 {
-
-    if (json_object.has("allOf")) {
-        auto allof = json_object.get_or("allOf", JsonArray());
-        if (!allof.is_array()) {
+    if (json_object.has(property)) {
+        auto property_value = json_object.get_or(property, JsonArray());
+        if (!property_value.is_array()) {
             StringBuilder b;
-            b.appendf("items value is not a json array, it is: %s", allof.to_string().characters());
+            b.appendf("items value is not a json array, it is: %s", property_value.to_string().characters());
             add_parser_error(b.build());
             return;
         }
 
-        JsonArray allof_array = allof.as_array();
-        for (auto& item : allof_array.values()) {
+        JsonArray property_array = property_value.as_array();
+        for (auto& item : property_array.values()) {
             OwnPtr<JsonSchemaNode> child_node = get_typed_node(item, node);
             if (child_node)
-                node->append_all_of(child_node.release_nonnull());
+                callback(child_node.release_nonnull());
         }
     }
 }
@@ -290,23 +293,22 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                         }
                     });
                 }
+
                 auto pattern_properties = json_object.get_or("patternProperties", JsonObject());
                 if (!properties.is_object()) {
                     add_parser_error("patternProperties value is not a json object");
                 } else {
-                    if (pattern_properties.is_object()) {
-                        pattern_properties.as_object().for_each_member([&](auto& key, auto& json_value) {
-                            if (!json_value.is_object()) {
-                                add_parser_error("patternProperty element is not a json object");
-                            } else {
-                                OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
-                                if (child_node) {
-                                    child_node->set_identified_by_pattern(true, key);
-                                    obj_node.append_property(key, child_node.release_nonnull());
-                                }
+                    pattern_properties.as_object().for_each_member([&](auto& key, auto& json_value) {
+                        if (!json_value.is_object()) {
+                            add_parser_error("patternProperty element is not a json object");
+                        } else {
+                            OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
+                            if (child_node) {
+                                child_node->set_identified_by_pattern(true, key);
+                                obj_node.append_property(key, child_node.release_nonnull());
                             }
-                        });
-                    }
+                        }
+                    });
                 }
                 // FIXME: additionalProperties could be any valid json schema, not just true/false.
                 auto additional_properties = json_object.get_or("additionalProperties", JsonValue(true));
@@ -347,7 +349,12 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         }
 
         if (node) {
-            parse_all_of(json_object, node);
+            parse_sub_schema("allOf", json_object, node, [&node](auto&& child_node) {
+                node->append_all_of(move(child_node));
+            });
+            parse_sub_schema("anyOf", json_object, node, [&node](auto&& child_node) {
+                node->append_any_of(move(child_node));
+            });
         }
     }
     return move(node);

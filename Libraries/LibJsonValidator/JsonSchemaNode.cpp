@@ -74,6 +74,14 @@ void JsonSchemaNode::dump(int indent, String additional) const
             item.dump(indent + 2);
         }
     }
+
+    if (m_any_of.size()) {
+        print_indent(indent + 1);
+        printf("anyOf:\n");
+        for (auto& item : m_any_of) {
+            item.dump(indent + 2);
+        }
+    }
 }
 
 void ObjectNode::dump(int indent, String = "") const
@@ -171,7 +179,16 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
     for (auto& item : m_all_of) {
         valid &= item.validate(json, e);
     }
-    return valid;
+
+    // run all checks of "anyOf" on this node. Valid if one of the any is true.
+    bool any = true;
+    if (m_any_of.size()) {
+        any = false;
+        for (auto& item : m_any_of) {
+            any |= item.validate(json, e);
+        }
+    }
+    return valid & any;
 }
 
 bool StringNode::validate(const JsonValue& json, ValidationError& e) const

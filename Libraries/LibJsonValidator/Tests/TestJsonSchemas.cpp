@@ -65,6 +65,13 @@ TEST_CASE(pattern)
     execute(fp);
 }
 
+TEST_CASE(anyOf)
+{
+    FILE* fp = fopen("draft2019-09/anyOf.json", "r");
+    ASSERT(fp);
+    execute(fp);
+}
+
 TEST_MAIN(JsonSchemas)
 
 inline void execute(FILE* fp)

@@ -102,6 +102,11 @@ public:
         m_all_of.append(move(node));
     }
 
+    void append_any_of(NonnullOwnPtr<JsonSchemaNode>&& node)
+    {
+        m_any_of.append(move(node));
+    }
+
     bool identified_by_pattern() const { return m_identified_by_pattern; }
 
     bool match_against_pattern(const String value) const
@@ -169,6 +174,7 @@ private:
     JsonSchemaNode* m_parent;
 
     NonnullOwnPtrVector<JsonSchemaNode> m_all_of;
+    NonnullOwnPtrVector<JsonSchemaNode> m_any_of;
 };
 
 class StringNode : public JsonSchemaNode {
