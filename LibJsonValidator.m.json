@@ -10,6 +10,7 @@
                 "Libraries/LibJsonValidator/*.cpp"
             ],
             "include": [
+                "Libraries",
                 "Libraries/LibJsonValidator"
             ],
             "dependency": [
@@ -28,7 +29,17 @@
                     "pattern": "*.h",
                     "dest": "${IncludeDir}/LibJsonValidator"
                 }
-            ]
+            ],
+            "test": {
+                "executable": {
+                    "TestJsonSchemas": {
+                        "source": "Tests/TestJsonSchemas.cpp",
+                        "include": [],
+                        "additional_dependency": [],
+                        "exclude_from_package_source": []
+                    }
+                }
+            }
         }
     }
 }

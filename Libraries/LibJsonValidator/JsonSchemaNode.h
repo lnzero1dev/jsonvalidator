@@ -33,6 +33,7 @@
 #include <AK/NonnullOwnPtrVector.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <cstdio>
 
 #ifndef __serenity__
 #    include <regex.h>

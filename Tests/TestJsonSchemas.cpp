@@ -39,35 +39,35 @@ inline void execute(FILE* fp);
 
 TEST_CASE(additionalProperties)
 {
-    FILE* fp = fopen("draft2019-09/additionalItems.json", "r");
+    FILE* fp = fopen("resource/draft2019-09/additionalItems.json", "r");
     ASSERT(fp);
     execute(fp);
 }
 
 TEST_CASE(allOf)
 {
-    FILE* fp = fopen("draft2019-09/allOf.json", "r");
+    FILE* fp = fopen("resource/draft2019-09/allOf.json", "r");
     ASSERT(fp);
     execute(fp);
 }
 
 TEST_CASE(boolean_schema)
 {
-    FILE* fp = fopen("draft2019-09/boolean_schema.json", "r");
+    FILE* fp = fopen("resource/draft2019-09/boolean_schema.json", "r");
     ASSERT(fp);
     execute(fp);
 }
 
 TEST_CASE(pattern)
 {
-    FILE* fp = fopen("draft2019-09/pattern.json", "r");
+    FILE* fp = fopen("resource/draft2019-09/pattern.json", "r");
     ASSERT(fp);
     execute(fp);
 }
 
 TEST_CASE(anyOf)
 {
-    FILE* fp = fopen("draft2019-09/anyOf.json", "r");
+    FILE* fp = fopen("resource/draft2019-09/anyOf.json", "r");
     ASSERT(fp);
     execute(fp);
 }
@@ -115,6 +115,8 @@ inline void execute(FILE* fp)
         ASSERT(tests.is_array());
         auto tests_array = tests.as_array();
 
+        bool at_least_one_invalid = false;
+
         for (auto& test_item : tests_array.values()) {
             ASSERT(test_item.is_object());
             auto test_item_obj = test_item.as_object();
@@ -141,7 +143,7 @@ inline void execute(FILE* fp)
                 printf("✔\n");
             else {
                 printf("✘\n");
-
+                at_least_one_invalid = true;
 #ifdef JSON_SCHEMA_TEST_DEBUG
                 for (auto& err : vr.e.errors()) {
                     printf("[E] %s\n", err.characters());
@@ -156,5 +158,8 @@ inline void execute(FILE* fp)
             EXPECT(valid == vr.success);
         }
         printf("\n");
+
+        if (at_least_one_invalid)
+            throw TestException(__FILE__, __LINE__, "Test failed");
     }
 }

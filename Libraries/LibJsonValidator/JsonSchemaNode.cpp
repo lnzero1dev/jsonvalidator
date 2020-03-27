@@ -220,10 +220,12 @@ bool StringNode::match_against_pattern(const String value) const
 {
 #ifdef __serenity__
     UNUSED_PARAM(value);
-    if (m_pattern == "^.*$") {
-        // FIXME: Match everything, to be replaced with below code from else case when
-        // posix pattern matching implemented
-        return true;
+    if (m_pattern.has_value()) {
+        if (m_pattern.value() == "^.*$") {
+            // FIXME: Match everything, to be replaced with below code from else case when
+            // posix pattern matching implemented
+            return true;
+        }
     }
 #else
     int reti = regexec(&m_pattern_regex, value.characters(), 0, NULL, 0);
