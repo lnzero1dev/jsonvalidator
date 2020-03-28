@@ -210,9 +210,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
             if (json_object.has("items")) {
                 auto items = json_object.get_or("items", JsonObject());
-                if (!items.is_object() && !items.is_array()) {
+                if (!items.is_object() && !items.is_array() && !items.is_bool()) {
                     StringBuilder b;
-                    b.appendf("items value is not a json object/array, it is: %s", items.to_string().characters());
+                    b.appendf("items value is not a json object/array/bool, it is: %s", items.to_string().characters());
                     add_parser_error(b.build());
                 }
 
@@ -225,11 +225,15 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                     array_node.set_items_is_array(true);
                     JsonArray items_array = items.as_array();
                     for (auto& item : items_array.values()) {
-                        ASSERT(item.is_object());
+                        ASSERT(item.is_object() || item.is_bool());
                         OwnPtr<JsonSchemaNode> child_node = get_typed_node(item, node.ptr());
                         if (child_node)
                             array_node.append_item(child_node.release_nonnull());
                     }
+                } else if (items.is_bool()) {
+                    OwnPtr<JsonSchemaNode> child_node = get_typed_node(items, node.ptr());
+                    if (child_node)
+                        array_node.append_item(child_node.release_nonnull());
                 }
             }
 
