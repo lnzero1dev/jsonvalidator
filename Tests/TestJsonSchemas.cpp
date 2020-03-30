@@ -35,68 +35,29 @@
 #include <LibJsonValidator/Parser.h>
 #include <LibJsonValidator/Validator.h>
 
-inline void execute(FILE* fp);
+inline void execute(const String name);
 
-TEST_CASE(additionalItems)
-{
-    FILE* fp = fopen("resource/draft2019-09/additionalItems.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(allOf)
-{
-    FILE* fp = fopen("resource/draft2019-09/allOf.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(boolean_schema)
-{
-    FILE* fp = fopen("resource/draft2019-09/boolean_schema.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(pattern)
-{
-    FILE* fp = fopen("resource/draft2019-09/pattern.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(anyOf)
-{
-    FILE* fp = fopen("resource/draft2019-09/anyOf.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(items)
-{
-    FILE* fp = fopen("resource/draft2019-09/items.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(additionalProperties)
-{
-    FILE* fp = fopen("resource/draft2019-09/additionalProperties.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
-
-TEST_CASE(ref)
-{
-    FILE* fp = fopen("resource/draft2019-09/ref.json", "r");
-    ASSERT(fp);
-    execute(fp);
-}
+TEST_CASE(additionalItems) { execute("additionalItems"); }
+TEST_CASE(additionalProperties) { execute("additionalProperties"); }
+TEST_CASE(allOf) { execute("allOf"); }
+TEST_CASE(anyOf) { execute("anyOf"); }
+TEST_CASE(boolean_schema) { execute("boolean_schema"); }
+TEST_CASE(items) { execute("items"); }
+TEST_CASE(pattern) { execute("pattern"); }
+TEST_CASE(ref) { execute("ref"); }
 
 TEST_MAIN(JsonSchemas)
 
-inline void execute(FILE* fp)
+inline void execute(const String name)
 {
+    StringBuilder filename;
+    filename.append("resource/draft2019-09/");
+    filename.append(name);
+    filename.append(".json");
+
+    FILE* fp = fopen(filename.build().characters(), "r");
+    ASSERT(fp);
+
     StringBuilder builder;
     for (;;) {
         char buffer[1024];
