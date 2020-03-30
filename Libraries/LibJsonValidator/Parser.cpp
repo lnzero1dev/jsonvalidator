@@ -166,6 +166,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         if (type_str == "null") {
             node = make<NullNode>(parent, "");
 
+        } else if (type_str == "boolean") {
+            node = make<BooleanNode>(parent, "");
+
         } else if (type_str == "number" || type_str == "integer"
             || json_object.has("minimum")
             || json_object.has("maximum")
@@ -189,7 +192,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
         } else if (type_str == "array"
             || json_object.has("items")
-            || json_object.has("additionalItems")
+            || (json_object.has("additionalItems") && json_object.has("items"))
             || json_object.has("unevaluatedItems")
             || json_object.has("maxItems")
             || json_object.has("minItems")
@@ -275,6 +278,8 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
             } else if (type_str == "object"
                 || json_object.has("properties")
+                || json_object.has("additionalProperties")
+                || json_object.has("patternProperties")
                 || json_object.has("maxProperties")
                 || json_object.has("required")
                 || json_object.has("dependentRequired")) {
@@ -308,46 +313,47 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                         } else {
                             OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
                             if (child_node) {
-                                child_node->set_identified_by_pattern(true, key);
-                                obj_node.append_property(key, child_node.release_nonnull());
+                                child_node->compile_pattern(key);
+                                obj_node.append_pattern_property(child_node.release_nonnull());
                             }
                         }
                     });
                 }
-                // FIXME: additionalProperties could be any valid json schema, not just true/false.
-                auto additional_properties = json_object.get_or("additionalProperties", JsonValue(true));
-                if (!additional_properties.is_bool()) {
-                    add_parser_error("additionalProperties value is not a json bool");
-                } else {
-                    obj_node.set_additional_properties(additional_properties.as_bool());
 
-                    auto required = json_object.get_or("required", JsonArray());
-                    if (!required.is_array()) {
-                        add_parser_error("required value is not a json array");
-                    } else {
-                        for (auto& required_property : required.as_array().values()) {
-                            if (!required_property.is_string()) {
-                                add_parser_error("required value is not string");
-                                continue;
+                auto additional_properties = json_object.get("additionalProperties");
+                if (!additional_properties.is_null()) {
+                    OwnPtr<JsonSchemaNode> child_node = get_typed_node(additional_properties, node.ptr());
+                    if (child_node) {
+                        obj_node.set_additional_properties(child_node.release_nonnull());
+                    }
+                }
+
+                auto required = json_object.get_or("required", JsonArray());
+                if (!required.is_array()) {
+                    add_parser_error("required value is not a json array");
+                } else {
+                    for (auto& required_property : required.as_array().values()) {
+
+                        if (!required_property.is_string()) {
+                            add_parser_error("required value is not string");
+                            continue;
+                        }
+                        bool found = false;
+                        for (auto& property : obj_node.properties()) {
+                            if (property.key == required_property.as_string()) {
+                                found = true;
+                                property.value->set_required(true);
+                                obj_node.append_required(property.key);
                             }
-                            bool found = false;
-                            for (auto& property : obj_node.properties()) {
-                                if (property.key == required_property.as_string()) {
-                                    found = true;
-                                    property.value->set_required(true);
-                                }
-                            }
-                            if (!found) {
-                                StringBuilder b;
-                                b.appendf("Specified required element '%s' not found in properties", required_property.as_string().characters());
-                                add_parser_error(b.build());
-                            }
+                        }
+                        if (!found) {
+                            StringBuilder b;
+                            b.appendf("Specified required element '%s' not found in properties", required_property.as_string().characters());
+                            add_parser_error(b.build());
                         }
                     }
                 }
-            }
-
-            else {
+            } else {
                 node = make<UndefinedNode>(parent);
             }
         }

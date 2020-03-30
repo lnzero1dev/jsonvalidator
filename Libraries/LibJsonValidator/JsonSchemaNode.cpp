@@ -87,10 +87,20 @@ void JsonSchemaNode::dump(int indent, String additional) const
 void ObjectNode::dump(int indent, String = "") const
 {
     JsonSchemaNode::dump(indent);
-    for (auto& property : properties()) {
+    for (auto& property : m_properties) {
         print_indent(indent + 1);
         printf("%s:\n", property.key.characters());
         property.value->dump(indent + 1);
+    }
+    for (auto& property : m_pattern_properties) {
+        print_indent(indent + 1);
+        printf("%s:\n", property.pattern().characters());
+        property.dump(indent + 1);
+    }
+    if (m_additional_properties) {
+        print_indent(indent + 1);
+        printf("additionalProperties:\n");
+        m_additional_properties->dump(indent + 1);
     }
 }
 
@@ -265,11 +275,12 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
     return valid;
 }
 
-bool BooleanNode::validate(const JsonValue& json, ValidationError& e) const
+bool BooleanNode::validate(const JsonValue& json, ValidationError&) const
 {
-    bool valid = JsonSchemaNode::validate(json, e);
-
-    return valid & m_value;
+    if (m_value.has_value())
+        return m_value.value();
+    else
+        return json.is_bool();
 }
 
 bool NullNode::validate(const JsonValue& json, ValidationError& e) const
@@ -307,75 +318,50 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
 
-    if (!json.is_object()) {
-        e.addf("json is not object: %s", json.to_string().characters());
-        return false;
-    }
+    if (!json.is_object())
+        return true; // ignore non object values
 
 #ifdef JSON_SCHEMA_DEBUG
     printf("Validating %lu properties.\n", m_properties.size());
 #endif
 
-    Vector<String> json_property_keys;
-    size_t members_count = 0;
-    json.as_object().for_each_member([&](auto& key, auto&) {
-        json_property_keys.append(key);
-        ++members_count;
-    });
-
-    for (auto& property : m_properties) {
-        if (property.value->identified_by_pattern()) {
-            // get all property keys that match the pattern
-            Vector<String> matched;
-            for (auto& key : json_property_keys)
-                if (property.value->match_against_pattern(key))
-                    matched.append(key);
-
-            Optional<size_t> n;
-            for (auto& match : matched)
-                if ((n = json_property_keys.find_first_index(match)).has_value())
-                    json_property_keys.remove(n.value());
-
-            StringBuilder keys_builder;
-            keys_builder.join<String, Vector<String>>(", ", matched);
-#ifdef JSON_SCHEMA_DEBUG
-            printf("%lu/%lu key(s) matched the pattern: %s\n", matched.size(), members_count, keys_builder.build().characters());
-#endif
-            if (matched.size()) {
-                for (auto& match : matched) {
-                    valid &= property.value->validate(json.as_object().get(match), e);
-                }
-            }
-
-        } else if (json.as_object().has(property.key)) {
-#ifdef JSON_SCHEMA_DEBUG
-            printf("Validating property %s.\n", property.key.characters());
-#endif
-            valid &= property.value->validate(json.as_object().get(property.key), e);
-
-            auto index = json_property_keys.find_first_index(property.key);
-            if (index.has_value())
-                json_property_keys.remove(index.value());
-#ifdef JSON_SCHEMA_DEBUG
-            else
-                printf("error: could not remove key from vector\n");
-#endif
-        } else if (property.value->required()) {
-            e.addf("required value %s not found at %s", property.key.characters(), property.value->path().characters());
+    // check for missing items
+    for (auto& required : m_required) {
+        if (!json.as_object().has(required)) {
+            e.addf("required value %s not found at %s", required.characters(), path().characters());
             return false;
         }
     }
 
-    // when no additional properties allowed, json_property_keys must be empty
-    if (!m_additional_properties && json_property_keys.size()) {
-        StringBuilder props_builder;
-        props_builder.append("found additional properties \"");
-        props_builder.join<String, Vector<String>>(", ", json_property_keys);
+    json.as_object().for_each_member([&](auto& key, auto& value) {
+        // key is in properties
+        if (m_properties.contains(key)) {
+            auto* property = m_properties.get(key).value();
+            ASSERT(property);
+            valid &= property->validate(value, e);
 
-        props_builder.append("\", but not allowed due to additionalProperties");
-        e.add(props_builder.build());
-        return false;
-    }
+        } else {
+            // check all pattern properties for a match
+            bool match = false;
+            for (auto& pattern_property : m_pattern_properties) {
+                if (pattern_property.match_against_pattern(key)) {
+                    match = true;
+                    valid &= pattern_property.validate(value, e);
+                    break;
+                }
+            }
+
+            // it's time to check agains additionalProperties, if available
+            if (!match) {
+                if (m_additional_properties)
+                    valid &= m_additional_properties->validate(value, e);
+                else {
+                    e.addf("property %s not in schema definition at %s", key.characters(), path().characters());
+                    valid = false;
+                }
+            }
+        }
+    });
 
     return valid;
 }
@@ -385,7 +371,7 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
     bool valid = JsonSchemaNode::validate(json, e);
 
     if (!json.is_array())
-        return true; // ignore non array types...
+        return false;
 
     auto& values = json.as_array().values();
 

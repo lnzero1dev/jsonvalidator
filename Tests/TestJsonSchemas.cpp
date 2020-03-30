@@ -37,7 +37,7 @@
 
 inline void execute(FILE* fp);
 
-TEST_CASE(additionalProperties)
+TEST_CASE(additionalItems)
 {
     FILE* fp = fopen("resource/draft2019-09/additionalItems.json", "r");
     ASSERT(fp);
@@ -75,6 +75,13 @@ TEST_CASE(anyOf)
 TEST_CASE(items)
 {
     FILE* fp = fopen("resource/draft2019-09/items.json", "r");
+    ASSERT(fp);
+    execute(fp);
+}
+
+TEST_CASE(additionalProperties)
+{
+    FILE* fp = fopen("resource/draft2019-09/additionalProperties.json", "r");
     ASSERT(fp);
     execute(fp);
 }

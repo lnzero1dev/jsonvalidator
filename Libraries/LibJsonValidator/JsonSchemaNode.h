@@ -28,6 +28,7 @@
 
 #include "Forward.h"
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullOwnPtrVector.h>
@@ -87,9 +88,8 @@ public:
         m_enum_items = enum_items;
     }
 
-    void set_identified_by_pattern(bool identified_by_pattern, const String pattern)
+    void compile_pattern(const String pattern)
     {
-        m_identified_by_pattern = identified_by_pattern;
         m_pattern = pattern;
 #ifndef __serenity__
         if (regcomp(&m_pattern_regex, pattern.characters(), REG_EXTENDED)) {
@@ -107,8 +107,6 @@ public:
     {
         m_any_of.append(move(node));
     }
-
-    bool identified_by_pattern() const { return m_identified_by_pattern; }
 
     bool match_against_pattern(const String value) const
     {
@@ -135,9 +133,10 @@ public:
 
     bool required() const { return m_required; }
     InstanceType type() const { return m_type; }
-    const String id() const { return m_id; }
+    const String& id() const { return m_id; }
     JsonValue default_value() const { return m_default_value; }
     JsonValue enum_items() const { return m_enum_items; }
+    const String& pattern() const { return m_pattern; }
 
     JsonSchemaNode* parent() const { return m_parent; }
     String path() const;
@@ -242,6 +241,17 @@ private:
 
 class BooleanNode : public JsonSchemaNode {
 public:
+    BooleanNode(String id, bool value)
+        : JsonSchemaNode(id, InstanceType::Boolean)
+        , m_value(value)
+    {
+    }
+
+    BooleanNode(JsonSchemaNode* parent, String id)
+        : JsonSchemaNode(parent, id, InstanceType::Boolean)
+    {
+    }
+
     BooleanNode(JsonSchemaNode* parent, String id, bool value)
         : JsonSchemaNode(parent, id, InstanceType::Boolean)
         , m_value(value)
@@ -254,7 +264,7 @@ public:
 private:
     virtual const char* class_name() const override { return "BooleanNode"; }
 
-    bool m_value;
+    Optional<bool> m_value;
 };
 
 class NullNode : public JsonSchemaNode {
@@ -307,27 +317,33 @@ public:
 
     void append_required(String required)
     {
-        m_required.append(required);
+        m_required.set(required);
     }
 
-    void set_additional_properties(bool additional_properties)
+    void append_pattern_property(NonnullOwnPtr<JsonSchemaNode>&& node)
     {
-        m_additional_properties = additional_properties;
+        m_pattern_properties.append(move(node));
+    }
+
+    void set_additional_properties(NonnullOwnPtr<JsonSchemaNode>&& node)
+    {
+        m_additional_properties = move(node);
     }
 
     HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& properties() { return m_properties; }
     const HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& properties() const { return m_properties; }
-    const Vector<String>& required() const { return m_required; }
+    const HashTable<String>& required() const { return m_required; }
 
 private:
     virtual const char* class_name() const override { return "ObjectNode"; }
 
     HashMap<String, NonnullOwnPtr<JsonSchemaNode>> m_properties;
+    NonnullOwnPtrVector<JsonSchemaNode> m_pattern_properties;
 
     Optional<u32> m_max_properties;
     u32 m_min_properties = 0;
-    Vector<String> m_required;
-    bool m_additional_properties { true };
+    HashTable<String> m_required;
+    OwnPtr<JsonSchemaNode> m_additional_properties = make<BooleanNode>(this, "", true);
 };
 
 class ArrayNode : public JsonSchemaNode {
