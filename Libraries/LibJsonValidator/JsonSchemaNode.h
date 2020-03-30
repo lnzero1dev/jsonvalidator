@@ -27,6 +27,7 @@
 #pragma once
 
 #include "Forward.h"
+#include <AK/Badge.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
@@ -138,24 +139,44 @@ public:
     JsonValue enum_items() const { return m_enum_items; }
     const String& pattern() const { return m_pattern; }
 
-    JsonSchemaNode* parent() const { return m_parent; }
+    JsonSchemaNode* parent() { return m_parent; }
+    const JsonSchemaNode* parent() const { return m_parent; }
+
+    JsonSchemaNode* reference() { return m_reference; }
+    const JsonSchemaNode* reference() const { return m_reference; }
+
+    void set_ref(const String& ref) { m_ref = ref; }
+    void set_root(Badge<Parser>) { m_root = true; }
+
     String path() const;
+
+    virtual bool is_object() const { return false; }
+    virtual bool is_array() const { return false; }
+    virtual bool is_null() const { return false; }
+    virtual bool is_undefined() const { return false; }
+    virtual bool is_number() const { return false; }
+    virtual bool is_boolean() const { return false; }
+    virtual bool is_string() const { return false; }
+    bool is_root() const { return m_root; }
+
+    virtual void resolve_reference(JsonSchemaNode* root_node);
+    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier);
+
+    JsonSchemaNode* resolve_reference(const String& ref, JsonSchemaNode* node);
 
 protected:
     JsonSchemaNode() {}
-    JsonSchemaNode(JsonSchemaNode* parent)
-        : m_parent(parent)
+
+    JsonSchemaNode(String id, InstanceType type)
+        : m_id(move(id))
+        , m_type(type)
     {
     }
+
     JsonSchemaNode(JsonSchemaNode* parent, String id, InstanceType type)
         : m_id(move(id))
         , m_type(type)
         , m_parent(parent)
-    {
-    }
-    JsonSchemaNode(String id, InstanceType type)
-        : m_id(move(id))
-        , m_type(type)
     {
     }
 
@@ -167,11 +188,14 @@ private:
     JsonValue m_default_value;
     JsonValue m_enum_items;
     bool m_identified_by_pattern { false };
+    bool m_root { false };
     String m_pattern;
 #ifndef __serenity__
     regex_t m_pattern_regex;
 #endif
-    JsonSchemaNode* m_parent;
+    JsonSchemaNode* m_parent { nullptr };
+    JsonSchemaNode* m_reference { nullptr };
+    String m_ref;
 
     NonnullOwnPtrVector<JsonSchemaNode> m_all_of;
     NonnullOwnPtrVector<JsonSchemaNode> m_any_of;
@@ -179,6 +203,11 @@ private:
 
 class StringNode : public JsonSchemaNode {
 public:
+    StringNode(String id)
+        : JsonSchemaNode(id, InstanceType::String)
+    {
+    }
+
     StringNode(JsonSchemaNode* parent, String id)
         : JsonSchemaNode(parent, id, InstanceType::String)
     {
@@ -186,6 +215,7 @@ public:
 
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_string() const override { return true; }
 
     void set_pattern(const String& pattern)
     {
@@ -216,6 +246,11 @@ private:
 
 class NumberNode : public JsonSchemaNode {
 public:
+    NumberNode(String id)
+        : JsonSchemaNode(id, InstanceType::Number)
+    {
+    }
+
     NumberNode(JsonSchemaNode* parent, String id)
         : JsonSchemaNode(parent, id, InstanceType::Number)
     {
@@ -223,6 +258,7 @@ public:
 
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_number() const override { return true; }
 
     void set_minimum(float value) { m_minimum = value; }
     void set_maximum(float value) { m_maximum = value; }
@@ -260,6 +296,7 @@ public:
 
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_boolean() const override { return true; }
 
 private:
     virtual const char* class_name() const override { return "BooleanNode"; }
@@ -269,6 +306,11 @@ private:
 
 class NullNode : public JsonSchemaNode {
 public:
+    NullNode(String id)
+        : JsonSchemaNode(id, InstanceType::Null)
+    {
+    }
+
     NullNode(JsonSchemaNode* parent, String id)
         : JsonSchemaNode(parent, id, InstanceType::Null)
     {
@@ -276,6 +318,7 @@ public:
 
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_null() const override { return true; }
 
 private:
     virtual const char* class_name() const override { return "NullNode"; }
@@ -283,6 +326,11 @@ private:
 
 class UndefinedNode : public JsonSchemaNode {
 public:
+    UndefinedNode()
+        : JsonSchemaNode("", InstanceType::Undefined)
+    {
+    }
+
     UndefinedNode(JsonSchemaNode* parent)
         : JsonSchemaNode(parent, "", InstanceType::Undefined)
     {
@@ -290,6 +338,7 @@ public:
 
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_undefined() const override { return true; }
 
 private:
     virtual const char* class_name() const override { return "UndefinedNode"; }
@@ -297,8 +346,8 @@ private:
 
 class ObjectNode : public JsonSchemaNode {
 public:
-    ObjectNode(JsonSchemaNode* parent)
-        : JsonSchemaNode(parent, "", InstanceType::Object)
+    ObjectNode(String id)
+        : JsonSchemaNode(id, InstanceType::Object)
     {
     }
 
@@ -307,13 +356,16 @@ public:
     {
     }
 
+    virtual void dump(int indent, String additional) const override;
+    virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_object() const override { return true; }
+    virtual void resolve_reference(JsonSchemaNode* root_node) override;
+    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier) override;
+
     void append_property(const String name, NonnullOwnPtr<JsonSchemaNode>&& node)
     {
         m_properties.set(name, move(node));
     }
-
-    virtual void dump(int indent, String additional) const override;
-    virtual bool validate(const JsonValue&, ValidationError&) const override;
 
     void append_required(String required)
     {
@@ -348,16 +400,6 @@ private:
 
 class ArrayNode : public JsonSchemaNode {
 public:
-    ArrayNode()
-        : JsonSchemaNode("", InstanceType::Array)
-    {
-    }
-
-    ArrayNode(JsonSchemaNode* parent)
-        : JsonSchemaNode(parent, "", InstanceType::Array)
-    {
-    }
-
     ArrayNode(String id)
         : JsonSchemaNode(id, InstanceType::Array)
     {
@@ -368,12 +410,11 @@ public:
     {
     }
 
-    ~ArrayNode()
-    {
-    }
-
     virtual void dump(int indent, String additional) const override;
     virtual bool validate(const JsonValue&, ValidationError&) const override;
+    virtual bool is_array() const override { return true; }
+    virtual void resolve_reference(JsonSchemaNode* root_node) override;
+    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier) override;
 
     const NonnullOwnPtrVector<JsonSchemaNode>& items() { return m_items; }
     void append_item(NonnullOwnPtr<JsonSchemaNode>&& item) { m_items.append(move(item)); }

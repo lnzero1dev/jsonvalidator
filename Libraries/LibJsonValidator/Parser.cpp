@@ -72,7 +72,8 @@ JsonValue Parser::run(const String filename)
 JsonValue Parser::run(const JsonValue& json)
 {
     if (json.is_bool()) {
-        m_root_node = make<BooleanNode>(nullptr, "", json.as_bool());
+        m_root_node = make<BooleanNode>("", json.as_bool());
+        m_root_node->set_root({});
         return JsonValue(true);
     }
 
@@ -92,6 +93,9 @@ JsonValue Parser::run(const JsonValue& json)
     m_root_node = get_typed_node(json_object);
     if (!m_root_node.ptr()) {
         add_parser_error("root node could not be identified correctly");
+    } else {
+        m_root_node->set_root({});
+        m_root_node->resolve_reference(m_root_node);
     }
 
     if (m_parser_errors.size()) {
@@ -157,6 +161,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         JsonObject json_object = json_value.as_object();
         JsonValue id = json_object.get("$id");
         JsonValue type = json_object.get("type");
+        JsonValue ref = json_object.get("$ref");
 
         if (type.is_array()) {
             add_parser_error("multiple types for element not supported.");
@@ -365,6 +370,10 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             parse_sub_schema("anyOf", json_object, node, [&node](auto&& child_node) {
                 node->append_any_of(move(child_node));
             });
+
+            if (ref.is_string() && !ref.as_string().is_empty()) {
+                node->set_ref(ref.as_string());
+            }
         }
     }
     return move(node);

@@ -35,6 +35,125 @@ namespace JsonValidator {
 
 JsonSchemaNode::~JsonSchemaNode() {}
 
+void JsonSchemaNode::resolve_reference(JsonSchemaNode* root_node)
+{
+    if (!m_ref.is_empty())
+        m_reference = resolve_reference(m_ref, root_node);
+}
+
+void ObjectNode::resolve_reference(JsonSchemaNode* root_node)
+{
+    JsonSchemaNode::resolve_reference(root_node);
+    for (auto& property : m_properties) {
+        property.value->resolve_reference(root_node);
+    }
+}
+
+void ArrayNode::resolve_reference(JsonSchemaNode* root_node)
+{
+    JsonSchemaNode::resolve_reference(root_node);
+    for (auto& item : m_items) {
+        item.resolve_reference(root_node);
+    }
+    if (m_additional_items) {
+        m_additional_items->resolve_reference(root_node);
+    }
+}
+
+int find_char(const String& haystack, const char& needle, const size_t start = 0)
+{
+    if (start > haystack.length())
+        return -1;
+
+    for (size_t i = start; i < haystack.length(); ++i) {
+        auto ch = haystack[i];
+        if (ch == needle) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaNode* root_node)
+{
+    if (ref.is_empty())
+        return nullptr;
+
+    String identifier;
+    int last = 0, next = 0;
+    JsonSchemaNode* node = root_node;
+
+    while (next < (int)ref.length()) {
+        next = find_char(ref, '/', last);
+        if (next < 0) {
+            next = ref.length();
+        }
+
+        identifier = ref.substring(last, next - last);
+        last = next + 1;
+        node = node->resolve_reference_handle_identifer(identifier);
+
+        if (!node)
+            return nullptr;
+    }
+
+    return node;
+}
+
+JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String& identifier)
+{
+    if (identifier == "#" && is_root())
+        return this;
+
+    if (m_id == identifier)
+        return this;
+
+    return nullptr;
+}
+
+JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& identifier)
+{
+    if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier))
+        return ptr;
+
+    static bool selected_properties { false };
+
+    if (identifier == "properties") {
+        selected_properties = true;
+        return this;
+    }
+
+    if (selected_properties) {
+        if (m_properties.contains(identifier)) {
+            return const_cast<JsonSchemaNode*>(m_properties.get(identifier).release_value());
+        }
+    }
+
+    return nullptr;
+}
+
+JsonSchemaNode* ArrayNode::resolve_reference_handle_identifer(const String& identifier)
+{
+    if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier))
+        return ptr;
+
+    static bool selected_items { false };
+
+    if (identifier == "items") {
+        selected_items = true;
+        return this;
+    }
+
+    if (selected_items) {
+        bool ok;
+        u32 index = identifier.to_uint(ok);
+        if (ok && index < m_items.size())
+            return &m_items[index];
+    }
+
+    return nullptr;
+}
+
 static void print_indent(int indent)
 {
     for (int i = 0; i < indent * 2; ++i)
@@ -190,6 +309,10 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
         valid &= item.validate(json, e);
     }
 
+    if (m_reference) {
+        valid &= m_reference->validate(json, e);
+    }
+
     // run all checks of "anyOf" on this node. Valid if one of the any is true.
     bool any = true;
     if (m_any_of.size()) {
@@ -198,6 +321,7 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
             any |= item.validate(json, e);
         }
     }
+
     return valid & any;
 }
 
@@ -300,16 +424,20 @@ String JsonSchemaNode::path() const
     if (parent()) {
         b.append(parent()->path());
         if (parent()->type() == InstanceType::Object) {
-            for (auto& item : static_cast<ObjectNode*>(parent())->properties()) {
+            for (auto& item : static_cast<const ObjectNode*>(parent())->properties()) {
                 if (item.value.ptr() == this) {
                     member_name = item.key;
                 }
             }
         }
     }
-    b.appendf("/%s", (!id().is_empty() ? id() : to_string(type())).characters());
+    b.append("/");
     if (!member_name.is_empty()) {
-        b.appendf("[%s]", member_name.characters());
+        b.appendf("properties/%s[", member_name.characters());
+    }
+    b.appendf("%s", (!id().is_empty() ? id() : to_string(type())).characters());
+    if (!member_name.is_empty()) {
+        b.append("]/");
     }
     return b.build();
 }

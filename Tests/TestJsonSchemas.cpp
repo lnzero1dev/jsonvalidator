@@ -86,6 +86,13 @@ TEST_CASE(additionalProperties)
     execute(fp);
 }
 
+TEST_CASE(ref)
+{
+    FILE* fp = fopen("resource/draft2019-09/ref.json", "r");
+    ASSERT(fp);
+    execute(fp);
+}
+
 TEST_MAIN(JsonSchemas)
 
 inline void execute(FILE* fp)
