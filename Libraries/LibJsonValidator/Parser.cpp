@@ -315,6 +315,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 || json_object.has("properties")
                 || json_object.has("additionalProperties")
                 || json_object.has("patternProperties")
+                || json_object.has("propertyNames")
                 || json_object.has("minProperties")
                 || json_object.has("maxProperties")
                 || json_object.has("required")
@@ -364,6 +365,13 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                     OwnPtr<JsonSchemaNode> child_node = get_typed_node(additional_properties, node.ptr());
                     if (child_node)
                         obj_node.set_additional_properties(child_node.release_nonnull());
+                }
+
+                auto property_names = json_object.get("propertyNames");
+                if (!property_names.is_undefined()) {
+                    OwnPtr<JsonSchemaNode> child_node = get_typed_node(property_names, node.ptr());
+                    if (child_node)
+                        obj_node.set_property_names(child_node.release_nonnull());
                 }
 
                 auto required = json_object.get_or("required", JsonArray());

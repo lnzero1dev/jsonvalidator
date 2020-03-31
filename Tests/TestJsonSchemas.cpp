@@ -61,6 +61,7 @@ TEST_CASE(not_) { execute("not"); }
 TEST_CASE(oneOf) { execute("oneOf"); }
 TEST_CASE(pattern) { execute("pattern"); }
 TEST_CASE(patternProperties) { execute("patternProperties"); }
+TEST_CASE(propertyNames) { execute("propertyNames"); }
 TEST_CASE(ref) { execute("ref"); }
 
 TEST_MAIN(JsonSchemas)

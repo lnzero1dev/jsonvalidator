@@ -581,6 +581,10 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
                 }
             }
         }
+
+        if (m_property_names) {
+            valid &= m_property_names->validate(JsonValue(key), e);
+        }
     });
 
     return valid;

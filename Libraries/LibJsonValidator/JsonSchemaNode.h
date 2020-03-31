@@ -408,6 +408,11 @@ public:
         m_additional_properties = move(node);
     }
 
+    void set_property_names(NonnullOwnPtr<JsonSchemaNode>&& node)
+    {
+        m_property_names = move(node);
+    }
+
     void set_max_properties(u32 max_properties)
     {
         m_max_properties = max_properties;
@@ -435,6 +440,7 @@ private:
     HashMap<String, HashTable<String>> m_dependent_required;
     HashMap<String, NonnullOwnPtr<JsonSchemaNode>> m_dependent_schemas;
     OwnPtr<JsonSchemaNode> m_additional_properties = make<BooleanNode>(this, "", true);
+    OwnPtr<JsonSchemaNode> m_property_names;
 };
 
 class ArrayNode : public JsonSchemaNode {
