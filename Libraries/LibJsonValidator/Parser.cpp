@@ -330,13 +330,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 } else {
 
                     properties.as_object().for_each_member([&](auto& key, auto& json_value) {
-                        if (!json_value.is_object()) {
-                            add_parser_error("property element is not a json object");
-                        } else {
-                            OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
-                            if (child_node)
-                                obj_node.append_property(key, child_node.release_nonnull());
-                        }
+                        OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
+                        if (child_node)
+                            obj_node.append_property(key, child_node.release_nonnull());
                     });
                 }
 
@@ -445,6 +441,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             });
             parse_sub_schema("anyOf", json_object, node, [&node](auto&& child_node) {
                 node->append_any_of(move(child_node));
+            });
+            parse_sub_schema("oneOf", json_object, node, [&node](auto&& child_node) {
+                node->append_one_of(move(child_node));
             });
 
             if (ref.is_string() && !ref.as_string().is_empty()) {

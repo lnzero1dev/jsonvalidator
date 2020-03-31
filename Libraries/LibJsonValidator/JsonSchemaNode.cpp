@@ -344,7 +344,21 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
     if (m_not)
         valid &= !(m_not->validate(json, e));
 
-    return valid & any;
+    bool one = true;
+    if (m_one_of.size()) {
+        one = false;
+        for (auto& item : m_one_of) {
+            bool this_one = item.validate(json, e);
+            if (!one && this_one)
+                one = true;
+            else if (one && this_one) {
+                one = false;
+                break;
+            }
+        }
+    }
+
+    return valid & any & one;
 }
 
 bool StringNode::validate(const JsonValue& json, ValidationError& e) const
