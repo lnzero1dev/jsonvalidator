@@ -46,7 +46,9 @@ TEST_CASE(contains) { execute("contains"); }
 TEST_CASE(dependentRequired) { execute("dependentRequired"); }
 TEST_CASE(items) { execute("items"); }
 TEST_CASE(maximum) { execute("maximum"); }
+TEST_CASE(maxProperties) { execute("maxProperties"); }
 TEST_CASE(minimum) { execute("minimum"); }
+TEST_CASE(minProperties) { execute("minProperties"); }
 TEST_CASE(pattern) { execute("pattern"); }
 TEST_CASE(ref) { execute("ref"); }
 

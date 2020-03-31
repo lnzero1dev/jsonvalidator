@@ -291,6 +291,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 || json_object.has("properties")
                 || json_object.has("additionalProperties")
                 || json_object.has("patternProperties")
+                || json_object.has("minProperties")
                 || json_object.has("maxProperties")
                 || json_object.has("required")
                 || json_object.has("dependentRequired")) {
@@ -312,6 +313,16 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                                 obj_node.append_property(key, child_node.release_nonnull());
                         }
                     });
+                }
+
+                auto min_properties = json_object.get("minProperties");
+                if (min_properties.is_number()) {
+                    obj_node.set_min_properties(min_properties.to_number<u32>(0));
+                }
+
+                auto max_properties = json_object.get("maxProperties");
+                if (max_properties.is_number()) {
+                    obj_node.set_max_properties(max_properties.to_number<u32>(0));
                 }
 
                 auto pattern_properties = json_object.get_or("patternProperties", JsonObject());

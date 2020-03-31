@@ -206,6 +206,16 @@ void JsonSchemaNode::dump(int indent, String additional) const
 void ObjectNode::dump(int indent, String = "") const
 {
     JsonSchemaNode::dump(indent);
+
+    if (m_min_properties) {
+        print_indent(indent + 1);
+        printf("minProperties: %i\n", m_min_properties);
+    }
+    if (m_max_properties.has_value()) {
+        print_indent(indent + 1);
+        printf("maxProperties: %i\n", m_max_properties.value());
+    }
+
     for (auto& property : m_properties) {
         print_indent(indent + 1);
         printf("%s:\n", property.key.characters());
@@ -450,11 +460,24 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
     bool valid = JsonSchemaNode::validate(json, e);
 
     if (!json.is_object())
-        return true; // ignore non object values
+        return valid;
 
 #ifdef JSON_SCHEMA_DEBUG
     printf("Validating %lu properties.\n", m_properties.size());
 #endif
+
+    if (m_min_properties) {
+        if (json.as_object().size() < (int)m_min_properties) {
+            e.addf("minProperties value of %i not met with %i items", m_min_properties, json.as_object().size());
+            return false;
+        }
+    }
+
+    if (m_max_properties.has_value())
+        if (json.as_object().size() > (int)m_max_properties.value()) {
+            e.addf("maxProperties value of %i not met with %i items", m_max_properties, json.as_object().size());
+            return false;
+        }
 
     // check for missing items
     for (auto& required : m_required) {

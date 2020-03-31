@@ -391,6 +391,16 @@ public:
         m_additional_properties = move(node);
     }
 
+    void set_max_properties(u32 max_properties)
+    {
+        m_max_properties = max_properties;
+    }
+
+    void set_min_properties(u32 min_properties)
+    {
+        m_min_properties = min_properties;
+    }
+
     HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& properties() { return m_properties; }
     const HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& properties() const { return m_properties; }
     const HashTable<String>& required() const { return m_required; }
