@@ -351,14 +351,10 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                     add_parser_error("patternProperties value is not a json object");
                 } else {
                     pattern_properties.as_object().for_each_member([&](auto& key, auto& json_value) {
-                        if (!json_value.is_object()) {
-                            add_parser_error("patternProperty element is not a json object");
-                        } else {
-                            OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
-                            if (child_node) {
-                                child_node->compile_pattern(key);
-                                obj_node.append_pattern_property(child_node.release_nonnull());
-                            }
+                        OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
+                        if (child_node) {
+                            child_node->compile_pattern(key);
+                            obj_node.append_pattern_property(child_node.release_nonnull());
                         }
                     });
                 }

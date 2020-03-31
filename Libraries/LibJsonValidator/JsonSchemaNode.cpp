@@ -568,7 +568,6 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
                 if (pattern_property.match_against_pattern(key)) {
                     match = true;
                     valid &= pattern_property.validate(value, e);
-                    break;
                 }
             }
 
