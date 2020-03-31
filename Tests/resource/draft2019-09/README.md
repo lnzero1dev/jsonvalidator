@@ -7,3 +7,16 @@ The following items have been removed from the test cases
 * JavaScript pseudo arrays
 * UTF16 minLength, maxLength tests
 * Multiple types test in "not" test, "type" test
+
+Completely missing tests:
+* optional/*
+* anchor.json
+* const.json
+* default.json
+* defs.json
+* enum.json
+* format.json
+* if-then-else.json
+* refRemote.json
+* unevaluatedItems.json
+* unevaluatedProperties.json
