@@ -162,6 +162,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         JsonValue id = json_object.get("$id");
         JsonValue type = json_object.get("type");
         JsonValue ref = json_object.get("$ref");
+        JsonValue default_value = json_object.get("default");
 
         if (type.is_array()) {
             add_parser_error("multiple types for element not supported.");
@@ -457,6 +458,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             if (ref.is_string() && !ref.as_string().is_empty()) {
                 node->set_ref(ref.as_string());
             }
+
+            if (!default_value.is_undefined())
+                node->set_default_value(default_value);
 
             node->set_type_str(type_str);
 

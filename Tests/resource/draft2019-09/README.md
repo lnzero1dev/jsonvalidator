@@ -11,9 +11,8 @@ The following items have been removed from the test cases
 Completely missing tests:
 * optional/*
 * anchor.json
-* const.json
-* default.json
 * defs.json
+* const.json
 * enum.json
 * format.json
 * if-then-else.json
