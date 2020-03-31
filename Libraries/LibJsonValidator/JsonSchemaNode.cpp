@@ -502,7 +502,7 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
     bool valid = JsonSchemaNode::validate(json, e);
 
     if (!json.is_array())
-        return false;
+        return valid;
 
     auto& values = json.as_array().values();
 
@@ -518,6 +518,8 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
 
     // validate each json array element against the items spec
     HashMap<u32, bool> hashes;
+    bool contains_valid { false };
+
     for (size_t i = 0; i < values.size(); ++i) {
         auto& value = values[i];
 
@@ -543,6 +545,14 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
                 valid &= m_items.at(0).validate(value, e);
             }
         }
+
+        if (m_contains && !contains_valid)
+            contains_valid = m_contains->validate(value, e);
+    }
+
+    if (m_contains) {
+        printf("Contains valid: %s\n", contains_valid ? "true" : "false");
+        valid &= contains_valid;
     }
 
     return valid;

@@ -432,10 +432,14 @@ public:
     const OwnPtr<JsonSchemaNode>& additional_items() const { return m_additional_items; }
     void set_additional_items(OwnPtr<JsonSchemaNode>&& additional_items) { m_additional_items = move(additional_items); }
 
+    const OwnPtr<JsonSchemaNode>& contains() const { return m_contains; }
+    void set_contains(OwnPtr<JsonSchemaNode>&& contains) { m_contains = move(contains); }
+
 private:
     virtual const char* class_name() const override { return "ArrayNode"; }
 
     NonnullOwnPtrVector<JsonSchemaNode> m_items;
+    OwnPtr<JsonSchemaNode> m_contains;
     OwnPtr<JsonSchemaNode> m_additional_items;
     bool m_items_is_array { false };
     Optional<u32> m_max_items;

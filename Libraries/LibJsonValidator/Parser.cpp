@@ -199,6 +199,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             || json_object.has("maxItems")
             || json_object.has("minItems")
             || json_object.has("uniqueItems")
+            || json_object.has("contains")
             || json_object.has("maxContains")
             || json_object.has("minContains")) {
 
@@ -210,7 +211,15 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             }
 
             if (json_object.has("additionalItems")) {
-                array_node.set_additional_items(get_typed_node(json_object.get("additionalItems"), node.ptr()));
+                OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_object.get("additionalItems"), node.ptr());
+                if (child_node)
+                    array_node.set_additional_items(child_node.release_nonnull());
+            }
+
+            if (json_object.has("contains")) {
+                OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_object.get("contains"), node.ptr());
+                if (child_node)
+                    array_node.set_contains(child_node.release_nonnull());
             }
 
             if (json_object.has("items")) {
