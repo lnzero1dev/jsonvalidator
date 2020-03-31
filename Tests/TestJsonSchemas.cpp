@@ -64,6 +64,7 @@ TEST_CASE(patternProperties) { execute("patternProperties"); }
 TEST_CASE(propertyNames) { execute("propertyNames"); }
 TEST_CASE(ref) { execute("ref"); }
 TEST_CASE(required) { execute("required"); }
+TEST_CASE(type) { execute("type"); }
 
 TEST_MAIN(JsonSchemas)
 
