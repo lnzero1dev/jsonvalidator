@@ -163,6 +163,8 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         JsonValue type = json_object.get("type");
         JsonValue ref = json_object.get("$ref");
         JsonValue default_value = json_object.get("default");
+        JsonValue enum_value = json_object.get("enum");
+        JsonValue const_value = json_object.get("const");
 
         if (type.is_array()) {
             add_parser_error("multiple types for element not supported.");
@@ -461,6 +463,16 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
             if (!default_value.is_undefined())
                 node->set_default_value(default_value);
+
+            if (enum_value.is_array()) {
+                for (auto& item : enum_value.as_array().values()) {
+                    if (!node->append_enum_item(item)) {
+                        add_parser_error("duplicate item in enum is not a allowed");
+                    }
+                }
+            } else if (!const_value.is_undefined()) {
+                node->append_enum_item(const_value);
+            }
 
             node->set_type_str(type_str);
 

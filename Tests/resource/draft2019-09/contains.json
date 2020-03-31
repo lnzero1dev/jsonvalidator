@@ -38,6 +38,29 @@
         ]
     },
     {
+        "description": "contains keyword with const keyword",
+        "schema": {
+            "contains": { "const": 5 }
+        },
+        "tests": [
+            {
+                "description": "array with item 5 is valid",
+                "data": [3, 4, 5],
+                "valid": true
+            },
+            {
+                "description": "array with two items 5 is valid",
+                "data": [3, 4, 5, 5],
+                "valid": true
+            },
+            {
+                "description": "array without item 5 is invalid",
+                "data": [1, 2, 3, 4],
+                "valid": false
+            }
+        ]
+    },
+    {
         "description": "contains keyword with boolean schema true",
         "schema": {"contains": true},
         "tests": [

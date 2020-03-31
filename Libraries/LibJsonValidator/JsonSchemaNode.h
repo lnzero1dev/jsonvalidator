@@ -89,9 +89,15 @@ public:
         m_required = required;
     }
 
-    void set_enum_items(JsonValue enum_items)
+    bool append_enum_item(JsonValue enum_item)
     {
-        m_enum_items = enum_items;
+        for (auto& item : m_enum_items) {
+            if (enum_item.equals(item))
+                return false;
+        }
+
+        m_enum_items.append(enum_item);
+        return true;
     }
 
     void compile_pattern(const String pattern)
@@ -149,7 +155,7 @@ public:
     const String& type_str() const { return m_type_str; }
     const String& id() const { return m_id; }
     JsonValue default_value() const { return m_default_value; }
-    JsonValue enum_items() const { return m_enum_items; }
+    const Vector<JsonValue>& enum_items() const { return m_enum_items; }
     const String& pattern() const { return m_pattern; }
 
     JsonSchemaNode* parent() { return m_parent; }
@@ -198,7 +204,7 @@ private:
     InstanceType m_type;
     String m_type_str;
     JsonValue m_default_value;
-    JsonValue m_enum_items;
+    Vector<JsonValue> m_enum_items;
     bool m_identified_by_pattern { false };
     bool m_root { false };
     String m_pattern;

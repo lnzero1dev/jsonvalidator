@@ -358,7 +358,15 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
         }
     }
 
-    return valid & any & one;
+    bool enum_matched = true;
+    if (m_enum_items.size()) {
+        enum_matched = false;
+        for (auto& item : m_enum_items) {
+            enum_matched |= item.equals(json);
+        }
+    }
+
+    return valid & any & one & enum_matched;
 }
 
 bool StringNode::validate(const JsonValue& json, ValidationError& e) const

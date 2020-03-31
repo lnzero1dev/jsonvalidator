@@ -12,8 +12,6 @@ Completely missing tests:
 * optional/*
 * anchor.json
 * defs.json
-* const.json
-* enum.json
 * format.json
 * if-then-else.json
 * refRemote.json

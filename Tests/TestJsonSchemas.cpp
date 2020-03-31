@@ -43,9 +43,11 @@ TEST_CASE(allOf) { execute("allOf"); }
 TEST_CASE(anyOf) { execute("anyOf"); }
 TEST_CASE(boolean_schema) { execute("boolean_schema"); }
 TEST_CASE(contains) { execute("contains"); }
+TEST_CASE(const_) { execute("const"); }
 TEST_CASE(default_) { execute("default"); }
 TEST_CASE(dependentRequired) { execute("dependentRequired"); }
 TEST_CASE(dependentSchemas) { execute("dependentSchemas"); }
+TEST_CASE(enum_) { execute("enum"); }
 TEST_CASE(exclusiveMaximum) { execute("exclusiveMaximum"); }
 TEST_CASE(exclusiveMinimum) { execute("exclusiveMinimum"); }
 TEST_CASE(items) { execute("items"); }
