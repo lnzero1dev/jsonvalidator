@@ -231,6 +231,15 @@ void ObjectNode::dump(int indent, String = "") const
         printf("additionalProperties:\n");
         m_additional_properties->dump(indent + 1);
     }
+    if (m_dependent_schemas.size()) {
+        print_indent(indent + 1);
+        printf("dependentSchemas:\n");
+        for (auto& dependent_schema : m_dependent_schemas) {
+            print_indent(indent + 2);
+            printf("%s:\n", dependent_schema.key.characters());
+            dependent_schema.value->dump(indent + 2);
+        }
+    }
 }
 
 void ArrayNode::dump(int indent, String = "") const
@@ -499,6 +508,13 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
         }
     }
 
+    Vector<const JsonSchemaNode*> dependent_schemas_to_apply;
+    for (auto& dependent_schema : m_dependent_schemas) {
+        if (json.as_object().has(dependent_schema.key)) {
+            valid &= dependent_schema.value->validate(json.as_object(), e);
+        }
+    }
+
     json.as_object().for_each_member([&](auto& key, auto& value) {
         // key is in properties
         if (m_properties.contains(key)) {
@@ -586,7 +602,6 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
     }
 
     if (m_contains) {
-        printf("Contains valid: %s\n", contains_valid ? "true" : "false");
         valid &= contains_valid;
     }
 

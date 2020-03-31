@@ -294,7 +294,8 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 || json_object.has("minProperties")
                 || json_object.has("maxProperties")
                 || json_object.has("required")
-                || json_object.has("dependentRequired")) {
+                || json_object.has("dependentRequired")
+                || json_object.has("dependentSchemas")) {
 
                 node = make<ObjectNode>(parent, id.as_string_or(""));
                 ObjectNode& obj_node = *static_cast<ObjectNode*>(node.ptr());
@@ -345,9 +346,8 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 auto additional_properties = json_object.get("additionalProperties");
                 if (!additional_properties.is_null()) {
                     OwnPtr<JsonSchemaNode> child_node = get_typed_node(additional_properties, node.ptr());
-                    if (child_node) {
+                    if (child_node)
                         obj_node.set_additional_properties(child_node.release_nonnull());
-                    }
                 }
 
                 auto required = json_object.get_or("required", JsonArray());
@@ -365,14 +365,10 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                             if (property.key == required_property.as_string()) {
                                 found = true;
                                 property.value->set_required(true);
-                                obj_node.append_required(property.key);
                             }
                         }
-                        if (!found) {
-                            StringBuilder b;
-                            b.appendf("Specified required element '%s' not found in properties", required_property.as_string().characters());
-                            add_parser_error(b.build());
-                        }
+
+                        obj_node.append_required(required_property.as_string());
                     }
                 }
 
@@ -388,6 +384,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                                 add_parser_error("dependentRequired item is not a json array");
                             } else {
                                 for (auto& dependency : json_value.as_array().values()) {
+
                                     if (!dependency.is_string()) {
                                         add_parser_error("dependentRequired dependency value is not string");
                                         continue;
@@ -400,6 +397,21 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                         });
                     }
                 }
+
+                auto dependent_schemas = json_object.get("dependentSchemas");
+                if (!dependent_schemas.is_undefined()) {
+                    if (!dependent_schemas.is_object()) {
+                        add_parser_error("dependentSchemas value is not a json object");
+                    } else {
+
+                        dependent_schemas.as_object().for_each_member([&](auto& key, auto& json_value) {
+                            OwnPtr<JsonSchemaNode> child_node = get_typed_node(json_value, node.ptr());
+                            if (child_node)
+                                obj_node.append_dependent_schema(key, child_node.release_nonnull());
+                        });
+                    }
+                }
+
             } else {
                 node = make<UndefinedNode>(parent);
             }

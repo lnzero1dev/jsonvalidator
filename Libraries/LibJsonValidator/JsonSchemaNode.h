@@ -381,6 +381,11 @@ public:
         m_dependent_required.set(dependant, dependencies);
     }
 
+    void append_dependent_schema(String dependant, NonnullOwnPtr<JsonSchemaNode>&& node)
+    {
+        m_dependent_schemas.set(dependant, move(node));
+    }
+
     void append_pattern_property(NonnullOwnPtr<JsonSchemaNode>&& node)
     {
         m_pattern_properties.append(move(node));
@@ -416,6 +421,7 @@ private:
     u32 m_min_properties = 0;
     HashTable<String> m_required;
     HashMap<String, HashTable<String>> m_dependent_required;
+    HashMap<String, NonnullOwnPtr<JsonSchemaNode>> m_dependent_schemas;
     OwnPtr<JsonSchemaNode> m_additional_properties = make<BooleanNode>(this, "", true);
 };
 
