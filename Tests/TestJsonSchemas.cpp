@@ -65,6 +65,7 @@ TEST_CASE(propertyNames) { execute("propertyNames"); }
 TEST_CASE(ref) { execute("ref"); }
 TEST_CASE(required) { execute("required"); }
 TEST_CASE(type) { execute("type"); }
+TEST_CASE(uniqueItems) { execute("uniqueItems"); }
 
 TEST_MAIN(JsonSchemas)
 

@@ -231,7 +231,11 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             }
 
             if (json_object.has("uniqueItems")) {
-                array_node.set_unique_items(true);
+                if (json_object.get("uniqueItems").is_bool())
+                    array_node.set_unique_items(json_object.get("uniqueItems").as_bool());
+                else {
+                    add_parser_error("uniqueItems value is not a bool");
+                }
             }
 
             if (json_object.has("additionalItems")) {
