@@ -364,6 +364,31 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                         }
                     }
                 }
+
+                auto dependent_required = json_object.get("dependentRequired");
+                if (!dependent_required.is_undefined()) {
+                    if (!dependent_required.is_object()) {
+                        add_parser_error("dependentRequired value is not a json object");
+                    } else {
+
+                        dependent_required.as_object().for_each_member([&](auto& key, auto& json_value) {
+                            HashTable<String> dependencies;
+                            if (!json_value.is_array()) {
+                                add_parser_error("dependentRequired item is not a json array");
+                            } else {
+                                for (auto& dependency : json_value.as_array().values()) {
+                                    if (!dependency.is_string()) {
+                                        add_parser_error("dependentRequired dependency value is not string");
+                                        continue;
+                                    }
+                                    // FIXME: Do we need to check for uniqueness and raise error if duplicate exist?
+                                    dependencies.set(dependency.as_string());
+                                }
+                            }
+                            obj_node.append_dependent_required(key, dependencies);
+                        });
+                    }
+                }
             } else {
                 node = make<UndefinedNode>(parent);
             }

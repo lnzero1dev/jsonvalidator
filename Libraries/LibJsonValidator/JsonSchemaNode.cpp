@@ -464,6 +464,18 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
         }
     }
 
+    // check for depentent required
+    for (auto& required : m_dependent_required) {
+        if (json.as_object().has(required.key)) {
+            for (auto& dependency : required.value) {
+                if (!json.as_object().has(dependency)) {
+                    e.addf("dependentRequired dependency %s not found at %s", dependency.characters(), path().characters());
+                    return false;
+                }
+            }
+        }
+    }
+
     json.as_object().for_each_member([&](auto& key, auto& value) {
         // key is in properties
         if (m_properties.contains(key)) {

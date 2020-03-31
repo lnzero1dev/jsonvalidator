@@ -376,6 +376,11 @@ public:
         m_required.set(required);
     }
 
+    void append_dependent_required(String dependant, HashTable<String> dependencies)
+    {
+        m_dependent_required.set(dependant, dependencies);
+    }
+
     void append_pattern_property(NonnullOwnPtr<JsonSchemaNode>&& node)
     {
         m_pattern_properties.append(move(node));
@@ -389,6 +394,7 @@ public:
     HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& properties() { return m_properties; }
     const HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& properties() const { return m_properties; }
     const HashTable<String>& required() const { return m_required; }
+    const HashMap<String, HashTable<String>>& dependent_required() const { return m_dependent_required; }
 
 private:
     virtual const char* class_name() const override { return "ObjectNode"; }
@@ -399,6 +405,7 @@ private:
     Optional<u32> m_max_properties;
     u32 m_min_properties = 0;
     HashTable<String> m_required;
+    HashMap<String, HashTable<String>> m_dependent_required;
     OwnPtr<JsonSchemaNode> m_additional_properties = make<BooleanNode>(this, "", true);
 };
 
