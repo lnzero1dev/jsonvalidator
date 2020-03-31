@@ -183,16 +183,13 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
             node = make<NumberNode>(parent, id.as_string_or(""));
             NumberNode& number_node = *static_cast<NumberNode*>(node.ptr());
-            if (type_str == "integer") {
-                number_node.set_is_integer();
-            }
 
             if (json_object.has("minimum")) {
-                number_node.set_minimum(json_object.get("minimum").to_number<float>());
+                number_node.set_minimum(json_object.get("minimum").to_number<double>());
             }
 
             if (json_object.has("maximum")) {
-                number_node.set_maximum(json_object.get("maximum").to_number<float>());
+                number_node.set_maximum(json_object.get("maximum").to_number<double>());
             }
 
         } else if (type_str == "array"
@@ -374,6 +371,8 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             if (ref.is_string() && !ref.as_string().is_empty()) {
                 node->set_ref(ref.as_string());
             }
+
+            node->set_type_str(type_str);
         }
     }
     return move(node);

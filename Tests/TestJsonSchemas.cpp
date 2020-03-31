@@ -43,6 +43,8 @@ TEST_CASE(allOf) { execute("allOf"); }
 TEST_CASE(anyOf) { execute("anyOf"); }
 TEST_CASE(boolean_schema) { execute("boolean_schema"); }
 TEST_CASE(items) { execute("items"); }
+TEST_CASE(maximum) { execute("maximum"); }
+TEST_CASE(minimum) { execute("minimum"); }
 TEST_CASE(pattern) { execute("pattern"); }
 TEST_CASE(ref) { execute("ref"); }
 
@@ -130,7 +132,7 @@ inline void execute(const String name)
                 for (auto& err : vr.e.errors()) {
                     printf("[E] %s\n", err.characters());
                 }
-
+                printf("json value: %s\n", test_item_obj.get("data").to_string().characters());
                 printf("Schema json: %s\n", schema.to_string().characters());
                 printf("Schema tree:\n");
                 parser.root_node().ptr()->dump(0);

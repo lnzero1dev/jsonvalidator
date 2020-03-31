@@ -292,7 +292,7 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
 #endif
 
     // check if type is matching
-    if (!validate_type(m_type, json)) {
+    if (!m_type_str.is_empty() && !validate_type(m_type, json)) {
         e.addf("type validation failed: have '%s', but looking for node with type '%s'", json.to_string().characters(), to_string(m_type).characters());
         return false;
     }
@@ -379,19 +379,22 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
 
-    if (m_is_integer && !(json.is_i32() || json.is_i64() || json.is_u32() || json.is_u64()))
+    if (!json.is_number())
+        return valid;
+
+    if (type_str() == "integer" && !(json.is_i32() || json.is_i64() || json.is_u32() || json.is_u64()))
         valid = false;
 
     if (m_minimum.has_value()) {
-        if (json.to_number<float>() <= m_minimum.value()) {
-            e.addf("Minimum invalid: value is %f, allowed is: %f", json.to_number<float>(), m_minimum.value());
+        if (json.to_number<double>() < m_minimum.value()) {
+            e.addf("Minimum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_minimum.value());
             valid = false;
         }
     }
 
     if (m_maximum.has_value()) {
-        if (json.to_number<float>() >= m_maximum.value()) {
-            e.addf("Maximum invalid: value is %f, allowed is: %f", json.to_number<float>(), m_maximum.value());
+        if (json.to_number<double>() > m_maximum.value()) {
+            e.addf("Maximum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_maximum.value());
             valid = false;
         }
     }

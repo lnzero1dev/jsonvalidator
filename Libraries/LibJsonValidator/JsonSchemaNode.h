@@ -79,6 +79,11 @@ public:
         m_type = type;
     }
 
+    void set_type_str(const String& type_str)
+    {
+        m_type_str = type_str;
+    }
+
     void set_required(bool required)
     {
         m_required = required;
@@ -134,6 +139,7 @@ public:
 
     bool required() const { return m_required; }
     InstanceType type() const { return m_type; }
+    const String& type_str() const { return m_type_str; }
     const String& id() const { return m_id; }
     JsonValue default_value() const { return m_default_value; }
     JsonValue enum_items() const { return m_enum_items; }
@@ -180,11 +186,10 @@ protected:
     {
     }
 
-    bool m_required { false };
-
 private:
     String m_id;
     InstanceType m_type;
+    String m_type_str;
     JsonValue m_default_value;
     JsonValue m_enum_items;
     bool m_identified_by_pattern { false };
@@ -196,6 +201,7 @@ private:
     JsonSchemaNode* m_parent { nullptr };
     JsonSchemaNode* m_reference { nullptr };
     String m_ref;
+    bool m_required { false };
 
     NonnullOwnPtrVector<JsonSchemaNode> m_all_of;
     NonnullOwnPtrVector<JsonSchemaNode> m_any_of;
@@ -260,19 +266,17 @@ public:
     virtual bool validate(const JsonValue&, ValidationError&) const override;
     virtual bool is_number() const override { return true; }
 
-    void set_minimum(float value) { m_minimum = value; }
-    void set_maximum(float value) { m_maximum = value; }
-    void set_is_integer() { m_is_integer = true; }
+    void set_minimum(double value) { m_minimum = value; }
+    void set_maximum(double value) { m_maximum = value; }
 
 private:
     virtual const char* class_name() const override { return "NumberNode"; }
 
-    Optional<float> m_multiple_of;
-    Optional<float> m_maximum;
-    Optional<float> m_exclusive_maximum;
-    Optional<float> m_minimum;
-    Optional<float> m_exclusive_minimum;
-    bool m_is_integer { false };
+    Optional<double> m_multiple_of;
+    Optional<double> m_maximum;
+    Optional<double> m_exclusive_maximum;
+    Optional<double> m_minimum;
+    Optional<double> m_exclusive_minimum;
 };
 
 class BooleanNode : public JsonSchemaNode {
