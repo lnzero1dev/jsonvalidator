@@ -460,6 +460,9 @@ public:
     const OwnPtr<JsonSchemaNode>& contains() const { return m_contains; }
     void set_contains(OwnPtr<JsonSchemaNode>&& contains) { m_contains = move(contains); }
 
+    void set_max_items(u32 value) { m_max_items = value; }
+    void set_min_items(u32 value) { m_min_items = value; }
+
 private:
     virtual const char* class_name() const override { return "ArrayNode"; }
 

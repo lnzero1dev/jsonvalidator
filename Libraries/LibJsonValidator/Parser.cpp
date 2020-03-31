@@ -214,6 +214,16 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             node = make<ArrayNode>(parent, id.as_string_or(""));
             ArrayNode& array_node = *static_cast<ArrayNode*>(node.ptr());
 
+            auto min_items = json_object.get("minItems");
+            if (min_items.is_number()) {
+                array_node.set_min_items(min_items.to_number<u32>(0));
+            }
+
+            auto max_items = json_object.get("maxItems");
+            if (max_items.is_number()) {
+                array_node.set_max_items(max_items.to_number<u32>(0));
+            }
+
             if (json_object.has("uniqueItems")) {
                 array_node.set_unique_items(true);
             }
