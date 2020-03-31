@@ -378,10 +378,8 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                             add_parser_error("required value is not string");
                             continue;
                         }
-                        bool found = false;
                         for (auto& property : obj_node.properties()) {
                             if (property.key == required_property.as_string()) {
-                                found = true;
                                 property.value->set_required(true);
                             }
                         }

@@ -50,9 +50,11 @@ TEST_CASE(exclusiveMinimum) { execute("exclusiveMinimum"); }
 TEST_CASE(items) { execute("items"); }
 TEST_CASE(maximum) { execute("maximum"); }
 TEST_CASE(maxItems) { execute("maxItems"); }
+TEST_CASE(maxLength) { execute("maxLength"); }
 TEST_CASE(maxProperties) { execute("maxProperties"); }
 TEST_CASE(minimum) { execute("minimum"); }
 TEST_CASE(minItems) { execute("minItems"); }
+TEST_CASE(minLength) { execute("minLength"); }
 TEST_CASE(minProperties) { execute("minProperties"); }
 TEST_CASE(pattern) { execute("pattern"); }
 TEST_CASE(ref) { execute("ref"); }

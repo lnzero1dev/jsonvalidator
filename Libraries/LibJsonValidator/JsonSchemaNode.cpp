@@ -360,7 +360,7 @@ bool StringNode::validate(const JsonValue& json, ValidationError& e) const
         }
 
         if (m_min_length.has_value()) {
-            valid &= !(value.length() <= m_min_length.value());
+            valid &= !(value.length() < m_min_length.value());
         }
     } else if (m_pattern.has_value()) {
         return true; // non-strings are ignored for pattern!
