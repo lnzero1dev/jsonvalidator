@@ -418,6 +418,20 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
         }
     }
 
+    if (m_exclusive_minimum.has_value()) {
+        if (json.to_number<double>() <= m_exclusive_minimum.value()) {
+            e.addf("exclusiveMinimum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_exclusive_minimum.value());
+            valid = false;
+        }
+    }
+
+    if (m_exclusive_maximum.has_value()) {
+        if (json.to_number<double>() >= m_exclusive_maximum.value()) {
+            e.addf("exclusiveMaximum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_exclusive_maximum.value());
+            valid = false;
+        }
+    }
+
     return valid;
 }
 

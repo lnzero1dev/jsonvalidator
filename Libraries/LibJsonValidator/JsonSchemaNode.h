@@ -268,6 +268,8 @@ public:
 
     void set_minimum(double value) { m_minimum = value; }
     void set_maximum(double value) { m_maximum = value; }
+    void set_exclusive_minimum(double value) { m_exclusive_minimum = value; }
+    void set_exclusive_maximum(double value) { m_exclusive_maximum = value; }
 
 private:
     virtual const char* class_name() const override { return "NumberNode"; }

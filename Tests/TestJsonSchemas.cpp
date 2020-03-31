@@ -45,6 +45,8 @@ TEST_CASE(boolean_schema) { execute("boolean_schema"); }
 TEST_CASE(contains) { execute("contains"); }
 TEST_CASE(dependentRequired) { execute("dependentRequired"); }
 TEST_CASE(dependentSchemas) { execute("dependentSchemas"); }
+TEST_CASE(exclusiveMaximum) { execute("exclusiveMaximum"); }
+TEST_CASE(exclusiveMinimum) { execute("exclusiveMinimum"); }
 TEST_CASE(items) { execute("items"); }
 TEST_CASE(maximum) { execute("maximum"); }
 TEST_CASE(maxProperties) { execute("maxProperties"); }

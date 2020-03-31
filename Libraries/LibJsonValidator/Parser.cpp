@@ -192,6 +192,14 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 number_node.set_maximum(json_object.get("maximum").to_number<double>());
             }
 
+            if (json_object.has("exclusiveMinimum")) {
+                number_node.set_exclusive_minimum(json_object.get("exclusiveMinimum").to_number<double>());
+            }
+
+            if (json_object.has("exclusiveMaximum")) {
+                number_node.set_exclusive_maximum(json_object.get("exclusiveMaximum").to_number<double>());
+            }
+
         } else if (type_str == "array"
             || json_object.has("items")
             || (json_object.has("additionalItems") && json_object.has("items"))
