@@ -341,6 +341,9 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
         }
     }
 
+    if (m_not)
+        valid &= !(m_not->validate(json, e));
+
     return valid & any;
 }
 

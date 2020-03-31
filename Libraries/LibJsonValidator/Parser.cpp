@@ -368,7 +368,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 }
 
                 auto additional_properties = json_object.get("additionalProperties");
-                if (!additional_properties.is_null()) {
+                if (!additional_properties.is_undefined()) {
                     OwnPtr<JsonSchemaNode> child_node = get_typed_node(additional_properties, node.ptr());
                     if (child_node)
                         obj_node.set_additional_properties(child_node.release_nonnull());
@@ -452,6 +452,13 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             }
 
             node->set_type_str(type_str);
+
+            auto not_ = json_object.get("not");
+            if (!not_.is_undefined()) {
+                OwnPtr<JsonSchemaNode> child_node = get_typed_node(not_, node.ptr());
+                if (child_node)
+                    node->set_not(child_node.release_nonnull());
+            }
         }
     }
     return move(node);

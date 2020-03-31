@@ -114,6 +114,8 @@ public:
         m_any_of.append(move(node));
     }
 
+    void set_not(NonnullOwnPtr<JsonSchemaNode>&& node) { m_not = move(node); }
+
     bool match_against_pattern(const String value) const
     {
 #ifdef __serenity__
@@ -205,6 +207,7 @@ private:
 
     NonnullOwnPtrVector<JsonSchemaNode> m_all_of;
     NonnullOwnPtrVector<JsonSchemaNode> m_any_of;
+    OwnPtr<JsonSchemaNode> m_not;
 };
 
 class StringNode : public JsonSchemaNode {
