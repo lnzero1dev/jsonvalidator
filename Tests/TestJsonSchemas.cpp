@@ -56,6 +56,7 @@ TEST_CASE(minimum) { execute("minimum"); }
 TEST_CASE(minItems) { execute("minItems"); }
 TEST_CASE(minLength) { execute("minLength"); }
 TEST_CASE(minProperties) { execute("minProperties"); }
+TEST_CASE(multipleOf) { execute("multipleOf"); }
 TEST_CASE(pattern) { execute("pattern"); }
 TEST_CASE(ref) { execute("ref"); }
 

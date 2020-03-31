@@ -200,6 +200,12 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 number_node.set_exclusive_maximum(json_object.get("exclusiveMaximum").to_number<double>());
             }
 
+            if (json_object.has("multipleOf")) {
+                double number = json_object.get("multipleOf").to_number<double>();
+                if (number > 0)
+                    number_node.set_multiple_of(number);
+            }
+
         } else if (type_str == "array"
             || json_object.has("items")
             || (json_object.has("additionalItems") && json_object.has("items"))

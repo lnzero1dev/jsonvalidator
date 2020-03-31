@@ -432,6 +432,14 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
         }
     }
 
+    if (m_multiple_of.has_value()) {
+        double result = json.to_number<double>() / m_multiple_of.value();
+        if ((result - (u64)result) != 0) {
+            e.addf("multipleOf invalid: value is %f, allowed is multipleOf: %f", json.to_number<double>(), m_multiple_of.value());
+            valid = false;
+        }
+    }
+
     return valid;
 }
 
