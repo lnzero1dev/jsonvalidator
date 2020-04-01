@@ -40,7 +40,10 @@
 #ifndef __serenity__
 #    include <regex.h>
 #endif
+
 namespace JsonValidator {
+
+String replace(const String& haystack, const String& needle, const String& replacement);
 
 class ValidationError;
 
@@ -61,33 +64,19 @@ public:
     virtual ~JsonSchemaNode();
     virtual const char* class_name() const = 0;
     virtual void dump(int indent, String additional = "") const;
-
     virtual bool validate(const JsonValue&, ValidationError& e) const;
 
-    void set_default_value(JsonValue default_value)
-    {
-        m_default_value = default_value;
-    }
+    void set_default_value(JsonValue default_value) { m_default_value = default_value; }
+    void set_id(String id) { m_id = id; }
+    void set_type(InstanceType type) { m_type = type; }
+    void set_type_str(const String& type_str) { m_type_str = type_str; }
+    void set_required(bool required) { m_required = required; }
 
-    void set_id(String id)
-    {
-        m_id = id;
-    }
-
-    void set_type(InstanceType type)
-    {
-        m_type = type;
-    }
-
-    void set_type_str(const String& type_str)
-    {
-        m_type_str = type_str;
-    }
-
-    void set_required(bool required)
-    {
-        m_required = required;
-    }
+    void append_all_of(NonnullOwnPtr<JsonSchemaNode>&& node) { m_all_of.append(move(node)); }
+    void append_any_of(NonnullOwnPtr<JsonSchemaNode>&& node) { m_any_of.append(move(node)); }
+    void append_one_of(NonnullOwnPtr<JsonSchemaNode>&& node) { m_one_of.append(move(node)); }
+    void append_defs(const String& key, NonnullOwnPtr<JsonSchemaNode>&& node) { m_defs.set(key, move(node)); }
+    void set_not(NonnullOwnPtr<JsonSchemaNode>&& node) { m_not = move(node); }
 
     bool append_enum_item(JsonValue enum_item)
     {
@@ -110,22 +99,6 @@ public:
 #endif
     }
 
-    void append_all_of(NonnullOwnPtr<JsonSchemaNode>&& node)
-    {
-        m_all_of.append(move(node));
-    }
-
-    void append_any_of(NonnullOwnPtr<JsonSchemaNode>&& node)
-    {
-        m_any_of.append(move(node));
-    }
-
-    void append_one_of(NonnullOwnPtr<JsonSchemaNode>&& node)
-    {
-        m_one_of.append(move(node));
-    }
-
-    void set_not(NonnullOwnPtr<JsonSchemaNode>&& node) { m_not = move(node); }
 
     bool match_against_pattern(const String value) const
     {
@@ -164,7 +137,32 @@ public:
     JsonSchemaNode* reference() { return m_reference; }
     const JsonSchemaNode* reference() const { return m_reference; }
 
-    void set_ref(const String& ref) { m_ref = ref; }
+    void set_ref(const String& ref)
+    {
+        m_ref = ref;
+#ifndef __serenity__
+        if (m_ref.contains("%")) {
+            for (u8 i = 0; i < 255; ++i) {
+                StringBuilder b;
+                b.append("%");
+                if (i < 16)
+                    b.appendf("(0%x|0%X)", i, i);
+                else
+                    b.appendf("(%x|%X)", i, i);
+                StringBuilder c;
+
+                if (i == 47) // 0x2F = '/'
+                    c.append("~1");
+                else if (i == 126) // 0x7E = '~'
+                    c.append("~0");
+                else
+                    c.append(char(i));
+
+                m_ref = replace(m_ref, b.build(), c.build());
+            }
+        }
+#endif
+    }
     void set_root(Badge<Parser>) { m_root = true; }
 
     String path() const;
@@ -220,6 +218,7 @@ private:
     NonnullOwnPtrVector<JsonSchemaNode> m_any_of;
     NonnullOwnPtrVector<JsonSchemaNode> m_one_of;
     OwnPtr<JsonSchemaNode> m_not;
+    HashMap<String, NonnullOwnPtr<JsonSchemaNode>> m_defs;
 };
 
 class StringNode : public JsonSchemaNode {

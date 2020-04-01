@@ -44,14 +44,14 @@ public:
 
     OwnPtr<JsonSchemaNode>& root_node() { return m_root_node; }
 
+    bool parse_sub_schema(const String& property,
+        const JsonObject& json_object,
+        JsonSchemaNode* node,
+        Function<void(const String&, NonnullOwnPtr<JsonSchemaNode>&&)> callback);
+
 private:
     OwnPtr<JsonSchemaNode> m_root_node;
     OwnPtr<JsonSchemaNode> get_typed_node(const JsonValue&, JsonSchemaNode* parent = nullptr);
-
-    void parse_sub_schema(const String& property,
-        const JsonObject& json_object,
-        JsonSchemaNode* node,
-        Function<void(NonnullOwnPtr<JsonSchemaNode>&&)> callback);
 
     void add_parser_error(String);
     Vector<String> m_parser_errors;

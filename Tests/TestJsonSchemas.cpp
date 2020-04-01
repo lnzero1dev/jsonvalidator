@@ -50,6 +50,7 @@ TEST_CASE(dependentSchemas) { execute("dependentSchemas"); }
 TEST_CASE(enum_) { execute("enum"); }
 TEST_CASE(exclusiveMaximum) { execute("exclusiveMaximum"); }
 TEST_CASE(exclusiveMinimum) { execute("exclusiveMinimum"); }
+TEST_CASE(defs) { execute("defs"); }
 TEST_CASE(items) { execute("items"); }
 TEST_CASE(maximum) { execute("maximum"); }
 TEST_CASE(maxItems) { execute("maxItems"); }

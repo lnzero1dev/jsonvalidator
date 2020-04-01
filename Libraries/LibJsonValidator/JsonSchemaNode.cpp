@@ -24,12 +24,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <AK/Function.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibJsonValidator/JsonSchemaNode.h>
 #include <LibJsonValidator/Parser.h>
 #include <LibJsonValidator/Validator.h>
 #include <stdio.h>
+#ifndef __serenity__
+#    include <regex>
+#endif
 
 namespace JsonValidator {
 
@@ -39,25 +43,43 @@ void JsonSchemaNode::resolve_reference(JsonSchemaNode* root_node)
 {
     if (!m_ref.is_empty())
         m_reference = resolve_reference(m_ref, root_node);
+
+    if (m_not)
+        m_not->resolve_reference(root_node);
+    for (auto& item : m_defs)
+        item.value->resolve_reference(root_node);
+    for (auto& item : m_all_of)
+        item.resolve_reference(root_node);
+    for (auto& item : m_any_of)
+        item.resolve_reference(root_node);
+    for (auto& item : m_one_of)
+        item.resolve_reference(root_node);
 }
 
 void ObjectNode::resolve_reference(JsonSchemaNode* root_node)
 {
     JsonSchemaNode::resolve_reference(root_node);
-    for (auto& property : m_properties) {
-        property.value->resolve_reference(root_node);
-    }
+    for (auto& item : m_properties)
+        item.value->resolve_reference(root_node);
+
+    for (auto& item : m_pattern_properties)
+        item.resolve_reference(root_node);
+    for (auto& item : m_dependent_schemas)
+        item.value->resolve_reference(root_node);
+    if (m_additional_properties)
+        m_additional_properties->resolve_reference(root_node);
 }
 
 void ArrayNode::resolve_reference(JsonSchemaNode* root_node)
 {
     JsonSchemaNode::resolve_reference(root_node);
-    for (auto& item : m_items) {
+    for (auto& item : m_items)
         item.resolve_reference(root_node);
-    }
-    if (m_additional_items) {
+
+    if (m_additional_items)
         m_additional_items->resolve_reference(root_node);
-    }
+    if (m_contains)
+        m_contains->resolve_reference(root_node);
 }
 
 int find_char(const String& haystack, const char& needle, const size_t start = 0)
@@ -72,6 +94,15 @@ int find_char(const String& haystack, const char& needle, const size_t start = 0
         }
     }
     return -1;
+}
+
+String replace(const String& haystack, const String& needle, const String& replacement)
+{
+#ifndef __serenity__
+    std::string hs(haystack.characters(), haystack.length());
+    std::string replaced = std::regex_replace(hs, std::regex(needle.characters()), replacement.characters());
+    return replaced.c_str();
+#endif
 }
 
 JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaNode* root_node)
@@ -89,9 +120,15 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaN
             next = ref.length();
         }
 
+        // prepare identifier
         identifier = ref.substring(last, next - last);
-        last = next + 1;
+#ifndef __serenity__
+        identifier = replace(identifier, "\\~0?1", "/");
+        identifier = replace(identifier, "\\~0", "~");
+#endif
+
         node = node->resolve_reference_handle_identifer(identifier);
+        last = next + 1;
 
         if (!node)
             return nullptr;
@@ -102,8 +139,23 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaN
 
 JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String& identifier)
 {
+    static bool selected_defs { false };
+
     if (identifier == "#" && is_root())
         return this;
+
+    if (identifier == "$defs") {
+        selected_defs = true;
+        return this;
+    }
+
+    if (selected_defs) {
+        selected_defs = false;
+        if (m_defs.contains(identifier))
+            return const_cast<JsonSchemaNode*>(m_defs.get(identifier).release_value());
+        else
+            return nullptr;
+    }
 
     if (m_id == identifier)
         return this;
@@ -124,9 +176,11 @@ JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& ide
     }
 
     if (selected_properties) {
-        if (m_properties.contains(identifier)) {
+        selected_properties = false;
+        if (m_properties.contains(identifier))
             return const_cast<JsonSchemaNode*>(m_properties.get(identifier).release_value());
-        }
+        else
+            return nullptr;
     }
 
     return nullptr;
@@ -145,6 +199,7 @@ JsonSchemaNode* ArrayNode::resolve_reference_handle_identifer(const String& iden
     }
 
     if (selected_items) {
+        selected_items = false;
         bool ok;
         u32 index = identifier.to_uint(ok);
         if (ok && index < m_items.size())
@@ -184,7 +239,16 @@ String to_string(InstanceType type)
 void JsonSchemaNode::dump(int indent, String additional) const
 {
     print_indent(indent);
-    printf("%s (%s%s%s)\n", m_id.characters(), class_name(), m_required ? " *" : "", additional.characters());
+    printf("%s (%s%s%s)", m_id.characters(), class_name(), m_required ? " *" : "", additional.characters());
+    if (!m_ref.is_empty()) {
+        auto ref = m_ref;
+        ref = replace(ref, "\\~0?1", "/");
+        ref = replace(ref, "\\~0", "~");
+        printf("-> %s", ref.characters());
+        if (m_reference)
+            printf(" (resolved)");
+    }
+    printf("\n");
 
     if (m_all_of.size()) {
         print_indent(indent + 1);
@@ -199,6 +263,30 @@ void JsonSchemaNode::dump(int indent, String additional) const
         printf("anyOf:\n");
         for (auto& item : m_any_of) {
             item.dump(indent + 2);
+        }
+    }
+
+    if (m_one_of.size()) {
+        print_indent(indent + 1);
+        printf("oneOf:\n");
+        for (auto& item : m_one_of) {
+            item.dump(indent + 2);
+        }
+    }
+
+    if (m_not) {
+        print_indent(indent + 1);
+        printf("not:\n");
+        m_not->dump(indent + 2);
+    }
+
+    if (m_defs.size()) {
+        print_indent(indent + 1);
+        printf("$defs:\n");
+        for (auto& item : m_defs) {
+            print_indent(indent + 2);
+            printf("%s:\n", item.key.characters());
+            item.value->dump(indent + 3);
         }
     }
 }
@@ -364,6 +452,14 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
         for (auto& item : m_enum_items) {
             enum_matched |= item.equals(json);
         }
+    }
+
+    if (json.is_object()) {
+        // check for definitions in values.
+        // FIXME: Unclear why this is even in the tests... what's the use case for values to have $defs?
+        Parser p;
+        if (!p.parse_sub_schema("$defs", json.as_object(), nullptr, [](auto&, auto&&) {}))
+            valid &= false;
     }
 
     return valid & any & one & enum_matched;

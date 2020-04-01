@@ -113,27 +113,43 @@ void Parser::add_parser_error(String error)
     m_parser_errors.append(error);
 }
 
-void Parser::parse_sub_schema(const String& property,
+bool Parser::parse_sub_schema(const String& property,
     const JsonObject& json_object,
     JsonSchemaNode* node,
-    Function<void(NonnullOwnPtr<JsonSchemaNode>&&)> callback)
+    Function<void(const String& key, NonnullOwnPtr<JsonSchemaNode>&&)> callback)
 {
-    if (json_object.has(property)) {
-        auto property_value = json_object.get_or(property, JsonArray());
-        if (!property_value.is_array()) {
-            StringBuilder b;
-            b.appendf("items value is not a json array, it is: %s", property_value.to_string().characters());
-            add_parser_error(b.build());
-            return;
-        }
+    if (!json_object.has(property))
+        return true; // subschema is valid, if there is none :-)
 
+    auto property_value = json_object.get_or(property, JsonArray());
+    if (property_value.is_array()) {
         JsonArray property_array = property_value.as_array();
         for (auto& item : property_array.values()) {
             OwnPtr<JsonSchemaNode> child_node = get_typed_node(item, node);
             if (child_node)
-                callback(child_node.release_nonnull());
+                callback("", child_node.release_nonnull());
+            else {
+                add_parser_error("Could not parse subschema");
+                return false;
+            }
         }
+        return true;
+    } else if (property_value.is_object()) {
+        bool result = true;
+        JsonObject property_object = property_value.as_object();
+        property_object.for_each_member([&](auto& key, auto& value) {
+            OwnPtr<JsonSchemaNode> child_node = get_typed_node(value, node);
+            if (child_node) {
+                callback(key, child_node.release_nonnull());
+            } else {
+                add_parser_error("Could not parse subschema");
+                result = false;
+            }
+        });
+        return result;
     }
+
+    return false;
 }
 
 OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonSchemaNode* parent)
@@ -166,10 +182,23 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         JsonValue enum_value = json_object.get("enum");
         JsonValue const_value = json_object.get("const");
 
+        String type_str;
+
         if (type.is_array()) {
             add_parser_error("multiple types for element not supported.");
         }
-        auto type_str = type.as_string_or("");
+        if (type.is_string()) {
+            type_str = type.as_string();
+
+            if (type_str != "" && type_str != "null" && type_str != "boolean" && type_str != "number"
+                && type_str != "integer" && type_str != "string" && type_str != "array" && type_str != "object") {
+                add_parser_error("type value invalid");
+                return { nullptr };
+            }
+        } else if (!type.is_undefined()) {
+            add_parser_error("type value type invalid (not string or array)");
+            return { nullptr };
+        }
 
         if (type_str == "null") {
             node = make<NullNode>(parent, "");
@@ -447,14 +476,17 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         }
 
         if (node) {
-            parse_sub_schema("allOf", json_object, node, [&node](auto&& child_node) {
+            parse_sub_schema("allOf", json_object, node, [&node](auto&, auto&& child_node) {
                 node->append_all_of(move(child_node));
             });
-            parse_sub_schema("anyOf", json_object, node, [&node](auto&& child_node) {
+            parse_sub_schema("anyOf", json_object, node, [&node](auto&, auto&& child_node) {
                 node->append_any_of(move(child_node));
             });
-            parse_sub_schema("oneOf", json_object, node, [&node](auto&& child_node) {
+            parse_sub_schema("oneOf", json_object, node, [&node](auto&, auto&& child_node) {
                 node->append_one_of(move(child_node));
+            });
+            parse_sub_schema("$defs", json_object, node, [&node](auto& key, auto&& child_node) {
+                node->append_defs(key, move(child_node));
             });
 
             if (ref.is_string() && !ref.as_string().is_empty()) {
