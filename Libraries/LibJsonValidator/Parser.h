@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/JsonValue.h>
 #include <AK/OwnPtr.h>
 #include <LibJsonValidator/Forward.h>
@@ -55,5 +56,7 @@ private:
 
     void add_parser_error(String);
     Vector<String> m_parser_errors;
+
+    HashMap<String, JsonSchemaNode*> m_anchors;
 };
 }

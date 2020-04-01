@@ -77,6 +77,7 @@ public:
     void append_one_of(NonnullOwnPtr<JsonSchemaNode>&& node) { m_one_of.append(move(node)); }
     void append_defs(const String& key, NonnullOwnPtr<JsonSchemaNode>&& node) { m_defs.set(key, move(node)); }
     void set_not(NonnullOwnPtr<JsonSchemaNode>&& node) { m_not = move(node); }
+    void set_anchors(HashMap<String, JsonSchemaNode*>&& anchors) { m_anchors = move(anchors); }
 
     bool append_enum_item(JsonValue enum_item)
     {
@@ -130,6 +131,7 @@ public:
     JsonValue default_value() const { return m_default_value; }
     const Vector<JsonValue>& enum_items() const { return m_enum_items; }
     const String& pattern() const { return m_pattern; }
+    const HashMap<String, JsonSchemaNode*>& anchors() { return m_anchors; }
 
     JsonSchemaNode* parent() { return m_parent; }
     const JsonSchemaNode* parent() const { return m_parent; }
@@ -177,7 +179,7 @@ public:
     bool is_root() const { return m_root; }
 
     virtual void resolve_reference(JsonSchemaNode* root_node);
-    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier);
+    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node);
 
     JsonSchemaNode* resolve_reference(const String& ref, JsonSchemaNode* node);
 
@@ -219,6 +221,7 @@ private:
     NonnullOwnPtrVector<JsonSchemaNode> m_one_of;
     OwnPtr<JsonSchemaNode> m_not;
     HashMap<String, NonnullOwnPtr<JsonSchemaNode>> m_defs;
+    HashMap<String, JsonSchemaNode*> m_anchors;
 };
 
 class StringNode : public JsonSchemaNode {
@@ -381,7 +384,7 @@ public:
     virtual bool validate(const JsonValue&, ValidationError&) const override;
     virtual bool is_object() const override { return true; }
     virtual void resolve_reference(JsonSchemaNode* root_node) override;
-    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier) override;
+    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node) override;
 
     void append_property(const String name, NonnullOwnPtr<JsonSchemaNode>&& node)
     {
@@ -464,7 +467,7 @@ public:
     virtual bool validate(const JsonValue&, ValidationError&) const override;
     virtual bool is_array() const override { return true; }
     virtual void resolve_reference(JsonSchemaNode* root_node) override;
-    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier) override;
+    virtual JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node) override;
 
     const NonnullOwnPtrVector<JsonSchemaNode>& items() { return m_items; }
     void append_item(NonnullOwnPtr<JsonSchemaNode>&& item) { m_items.append(move(item)); }

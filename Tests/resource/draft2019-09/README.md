@@ -1,7 +1,7 @@
 # Removed from Test-Cases
 
 The following items have been removed from the test cases
-* remote refs
+* remote refs, absolute URIs (refs.json, anchor.json)
 * JavaScript pseudo arrays
 * UTF16 minLength, maxLength tests
 * Multiple types test in "not" test, "type" test
@@ -9,8 +9,6 @@ The following items have been removed from the test cases
 
 Completely missing tests:
 * optional/*
-* anchor.json
-* format.json
 * if-then-else.json
 * refRemote.json
 * unevaluatedItems.json

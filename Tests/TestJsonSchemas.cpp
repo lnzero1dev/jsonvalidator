@@ -40,6 +40,7 @@ inline void execute(const String name);
 TEST_CASE(additionalItems) { execute("additionalItems"); }
 TEST_CASE(additionalProperties) { execute("additionalProperties"); }
 TEST_CASE(allOf) { execute("allOf"); }
+TEST_CASE(anchor) { execute("anchor"); }
 TEST_CASE(anyOf) { execute("anyOf"); }
 TEST_CASE(boolean_schema) { execute("boolean_schema"); }
 TEST_CASE(contains) { execute("contains"); }
@@ -51,6 +52,7 @@ TEST_CASE(enum_) { execute("enum"); }
 TEST_CASE(exclusiveMaximum) { execute("exclusiveMaximum"); }
 TEST_CASE(exclusiveMinimum) { execute("exclusiveMinimum"); }
 TEST_CASE(defs) { execute("defs"); }
+TEST_CASE(format) { execute("format"); }
 TEST_CASE(items) { execute("items"); }
 TEST_CASE(maximum) { execute("maximum"); }
 TEST_CASE(maxItems) { execute("maxItems"); }

@@ -127,7 +127,7 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaN
         identifier = replace(identifier, "\\~0", "~");
 #endif
 
-        node = node->resolve_reference_handle_identifer(identifier);
+        node = node->resolve_reference_handle_identifer(identifier, root_node);
         last = next + 1;
 
         if (!node)
@@ -137,12 +137,24 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaN
     return node;
 }
 
-JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String& identifier)
+JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node)
 {
     static bool selected_defs { false };
 
     if (identifier == "#" && is_root())
         return this;
+
+    if (identifier.starts_with("#")) {
+        printf("Looking for anchor: %s\n", identifier.characters());
+        StringBuilder b;
+        b.join(", ", root_node->anchors().keys());
+        printf("Having: %s\n", b.build().characters());
+
+        // check list of anchors
+        String replaced = replace(identifier, "#", "");
+        if (root_node->anchors().contains(replaced))
+            return root_node->anchors().get(replaced).value();
+    }
 
     if (identifier == "$defs") {
         selected_defs = true;
@@ -163,9 +175,9 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String&
     return nullptr;
 }
 
-JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& identifier)
+JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node)
 {
-    if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier))
+    if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier, root_node))
         return ptr;
 
     static bool selected_properties { false };
@@ -186,9 +198,9 @@ JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& ide
     return nullptr;
 }
 
-JsonSchemaNode* ArrayNode::resolve_reference_handle_identifer(const String& identifier)
+JsonSchemaNode* ArrayNode::resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node)
 {
-    if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier))
+    if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier, root_node))
         return ptr;
 
     static bool selected_items { false };

@@ -71,6 +71,9 @@ JsonValue Parser::run(const String filename)
 
 JsonValue Parser::run(const JsonValue& json)
 {
+    m_anchors.clear();
+    m_parser_errors.clear();
+
     if (json.is_bool()) {
         m_root_node = make<BooleanNode>("", json.as_bool());
         m_root_node->set_root({});
@@ -95,6 +98,7 @@ JsonValue Parser::run(const JsonValue& json)
         add_parser_error("root node could not be identified correctly");
     } else {
         m_root_node->set_root({});
+        m_root_node->set_anchors(move(m_anchors));
         m_root_node->resolve_reference(m_root_node);
     }
 
@@ -513,6 +517,12 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 OwnPtr<JsonSchemaNode> child_node = get_typed_node(not_, node.ptr());
                 if (child_node)
                     node->set_not(child_node.release_nonnull());
+            }
+
+            auto anchor = json_object.get("$anchor");
+            if (anchor.is_string()) {
+                printf("Found anchor: %s\n", anchor.as_string().characters());
+                m_anchors.set(anchor.as_string(), node);
             }
         }
     }
