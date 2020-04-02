@@ -43,8 +43,6 @@
 
 namespace JsonValidator {
 
-String replace(const String& haystack, const String& needle, const String& replacement);
-
 class ValidationError;
 
 enum class InstanceType : u8 {
@@ -142,28 +140,31 @@ public:
     void set_ref(const String& ref)
     {
         m_ref = ref;
-#ifndef __serenity__
         if (m_ref.contains("%")) {
             for (u8 i = 0; i < 255; ++i) {
-                StringBuilder b;
-                b.append("%");
-                if (i < 16)
-                    b.appendf("(0%x|0%X)", i, i);
-                else
-                    b.appendf("(%x|%X)", i, i);
-                StringBuilder c;
+                StringBuilder hex_lowercase, hex_uppercase, replacement;
+                hex_lowercase.append("%");
+                hex_uppercase.append("%");
+                if (i < 16) {
+                    hex_lowercase.appendf("0%x", i, i);
+                    hex_uppercase.appendf("0%X", i, i);
+                } else {
+                    hex_lowercase.appendf("%x", i, i);
+                    hex_uppercase.appendf("%X", i, i);
+                }
 
                 if (i == 47) // 0x2F = '/'
-                    c.append("~1");
+                    replacement.append("~1");
                 else if (i == 126) // 0x7E = '~'
-                    c.append("~0");
+                    replacement.append("~0");
                 else
-                    c.append(char(i));
+                    replacement.append(char(i));
 
-                m_ref = replace(m_ref, b.build(), c.build());
+                auto repl = replacement.build();
+                m_ref.replace(hex_lowercase.build(), repl, true);
+                m_ref.replace(hex_uppercase.build(), repl, true);
             }
         }
-#endif
     }
     void set_root(Badge<Parser>) { m_root = true; }
 

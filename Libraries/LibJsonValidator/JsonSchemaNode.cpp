@@ -31,9 +31,6 @@
 #include <LibJsonValidator/Parser.h>
 #include <LibJsonValidator/Validator.h>
 #include <stdio.h>
-#ifndef __serenity__
-#    include <regex>
-#endif
 
 namespace JsonValidator {
 
@@ -96,20 +93,6 @@ int find_char(const String& haystack, const char& needle, const size_t start = 0
     return -1;
 }
 
-String replace(const String& haystack, const String& needle, const String& replacement)
-{
-#ifndef __serenity__
-    std::string hs(haystack.characters(), haystack.length());
-    std::string replaced = std::regex_replace(hs, std::regex(needle.characters()), replacement.characters());
-    return replaced.c_str();
-#else
-    UNUSED_PARAM(haystack);
-    UNUSED_PARAM(needle);
-    UNUSED_PARAM(replacement);
-    return "";
-#endif
-}
-
 JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaNode* root_node)
 {
     if (ref.is_empty())
@@ -127,10 +110,8 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaN
 
         // prepare identifier
         identifier = ref.substring(last, next - last);
-#ifndef __serenity__
-        identifier = replace(identifier, "\\~0?1", "/");
-        identifier = replace(identifier, "\\~0", "~");
-#endif
+        identifier.replace("~1", "/", true);
+        identifier.replace("~0", "~", true);
 
         node = node->resolve_reference_handle_identifer(identifier, root_node);
         last = next + 1;
@@ -150,15 +131,11 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String&
         return this;
 
     if (identifier.starts_with("#")) {
-        printf("Looking for anchor: %s\n", identifier.characters());
-        StringBuilder b;
-        b.join(", ", root_node->anchors().keys());
-        printf("Having: %s\n", b.build().characters());
-
         // check list of anchors
-        String replaced = replace(identifier, "#", "");
-        if (root_node->anchors().contains(replaced))
-            return root_node->anchors().get(replaced).value();
+        String copy = identifier;
+        copy.replace("#", "");
+        if (root_node->anchors().contains(copy))
+            return root_node->anchors().get(copy).value();
     }
 
     if (identifier == "$defs") {
@@ -259,8 +236,8 @@ void JsonSchemaNode::dump(int indent, String additional) const
     printf("%s (%s%s%s)", m_id.characters(), class_name(), m_required ? " *" : "", additional.characters());
     if (!m_ref.is_empty()) {
         auto ref = m_ref;
-        ref = replace(ref, "\\~0?1", "/");
-        ref = replace(ref, "\\~0", "~");
+        ref.replace("~1", "/", true);
+        ref.replace("~0", "~", true);
         printf("-> %s", ref.characters());
         if (m_reference)
             printf(" (resolved)");
