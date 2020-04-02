@@ -34,9 +34,7 @@
 
 namespace JsonValidator {
 
-JsonSchemaNode::~JsonSchemaNode() {}
-
-void JsonSchemaNode::resolve_reference(JsonSchemaNode* root_node)
+void JsonSchemaNode::resolve_reference(const JsonSchemaNode* root_node)
 {
     if (!m_ref.is_empty())
         m_reference = resolve_reference(m_ref, root_node);
@@ -53,7 +51,7 @@ void JsonSchemaNode::resolve_reference(JsonSchemaNode* root_node)
         item.resolve_reference(root_node);
 }
 
-void ObjectNode::resolve_reference(JsonSchemaNode* root_node)
+void ObjectNode::resolve_reference(const JsonSchemaNode* root_node)
 {
     JsonSchemaNode::resolve_reference(root_node);
     for (auto& item : m_properties)
@@ -67,7 +65,7 @@ void ObjectNode::resolve_reference(JsonSchemaNode* root_node)
         m_additional_properties->resolve_reference(root_node);
 }
 
-void ArrayNode::resolve_reference(JsonSchemaNode* root_node)
+void ArrayNode::resolve_reference(const JsonSchemaNode* root_node)
 {
     JsonSchemaNode::resolve_reference(root_node);
     for (auto& item : m_items)
@@ -93,14 +91,14 @@ int find_char(const String& haystack, const char& needle, const size_t start = 0
     return -1;
 }
 
-JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaNode* root_node)
+const JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, const JsonSchemaNode* root_node) const
 {
     if (ref.is_empty())
         return nullptr;
 
     String identifier;
     int last = 0, next = 0;
-    JsonSchemaNode* node = root_node;
+    const JsonSchemaNode* node = root_node;
 
     while (next < (int)ref.length()) {
         next = find_char(ref, '/', last);
@@ -123,7 +121,7 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference(const String& ref, JsonSchemaN
     return node;
 }
 
-JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node)
+const JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String& identifier, const JsonSchemaNode* root_node) const
 {
     static bool selected_defs { false };
 
@@ -146,9 +144,8 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String&
     if (selected_defs) {
         selected_defs = false;
         if (m_defs.contains(identifier))
-            return const_cast<JsonSchemaNode*>(m_defs.get(identifier).release_value());
-        else
-            return nullptr;
+            return m_defs.get(identifier).release_value();
+        return nullptr;
     }
 
     if (m_id == identifier)
@@ -157,7 +154,7 @@ JsonSchemaNode* JsonSchemaNode::resolve_reference_handle_identifer(const String&
     return nullptr;
 }
 
-JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node)
+const JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& identifier, const JsonSchemaNode* root_node) const
 {
     if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier, root_node))
         return ptr;
@@ -172,15 +169,14 @@ JsonSchemaNode* ObjectNode::resolve_reference_handle_identifer(const String& ide
     if (selected_properties) {
         selected_properties = false;
         if (m_properties.contains(identifier))
-            return const_cast<JsonSchemaNode*>(m_properties.get(identifier).release_value());
-        else
-            return nullptr;
+            return m_properties.get(identifier).release_value();
+        return nullptr;
     }
 
     return nullptr;
 }
 
-JsonSchemaNode* ArrayNode::resolve_reference_handle_identifer(const String& identifier, JsonSchemaNode* root_node)
+const JsonSchemaNode* ArrayNode::resolve_reference_handle_identifer(const String& identifier, const JsonSchemaNode* root_node) const
 {
     if (auto* ptr = JsonSchemaNode::resolve_reference_handle_identifer(identifier, root_node))
         return ptr;
@@ -230,10 +226,10 @@ String to_string(InstanceType type)
     return "";
 }
 
-void JsonSchemaNode::dump(int indent, String additional) const
+void JsonSchemaNode::dump(int indent) const
 {
     print_indent(indent);
-    printf("%s (%s%s%s)", m_id.characters(), class_name(), m_required ? " *" : "", additional.characters());
+    printf("%s (%s%s)", m_id.characters(), class_name(), m_required ? " *" : "");
     if (!m_ref.is_empty()) {
         auto ref = m_ref;
         ref.replace("~1", "/", true);
@@ -285,7 +281,7 @@ void JsonSchemaNode::dump(int indent, String additional) const
     }
 }
 
-void ObjectNode::dump(int indent, String = "") const
+void ObjectNode::dump(int indent) const
 {
     JsonSchemaNode::dump(indent);
 
@@ -324,38 +320,13 @@ void ObjectNode::dump(int indent, String = "") const
     }
 }
 
-void ArrayNode::dump(int indent, String = "") const
+void ArrayNode::dump(int indent) const
 {
-    JsonSchemaNode::dump(indent, m_unique_items ? " with unique_items" : "");
+    JsonSchemaNode::dump(indent);
 
     if (m_items.size())
         for (auto& item : m_items)
             item.dump(indent + 1);
-}
-
-void StringNode::dump(int indent, String = "") const
-{
-    JsonSchemaNode::dump(indent);
-}
-
-void NumberNode::dump(int indent, String = "") const
-{
-    JsonSchemaNode::dump(indent);
-}
-
-void BooleanNode::dump(int indent, String = "") const
-{
-    JsonSchemaNode::dump(indent);
-}
-
-void NullNode::dump(int indent, String = "") const
-{
-    JsonSchemaNode::dump(indent);
-}
-
-void UndefinedNode::dump(int indent, String = "") const
-{
-    JsonSchemaNode::dump(indent);
 }
 
 bool validate_type(InstanceType type, const JsonValue& json)
@@ -484,7 +455,7 @@ bool StringNode::validate(const JsonValue& json, ValidationError& e) const
     return valid;
 }
 
-bool StringNode::match_against_pattern(const String value) const
+bool StringNode::match_against_pattern(const String& value) const
 {
 #ifdef __serenity__
     UNUSED_PARAM(value);
@@ -562,8 +533,8 @@ bool BooleanNode::validate(const JsonValue& json, ValidationError&) const
 {
     if (m_value.has_value())
         return m_value.value();
-    else
-        return json.is_bool();
+
+    return json.is_bool();
 }
 
 bool NullNode::validate(const JsonValue& json, ValidationError& e) const
@@ -621,7 +592,7 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
 
     if (m_max_properties.has_value())
         if (json.as_object().size() > (int)m_max_properties.value()) {
-            e.addf("maxProperties value of %i not met with %i items", m_max_properties, json.as_object().size());
+            e.addf("maxProperties value of %i not met with %i items", m_max_properties.value(), json.as_object().size());
             return false;
         }
 
@@ -720,8 +691,8 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
             if (hashes.get(hash).has_value()) {
                 e.add("duplicate item found, but not allowed due to uniqueItems");
                 return false;
-            } else
-                hashes.set(hash, true);
+            }
+            hashes.set(hash, true);
         }
 
         if (m_items_is_array) {
