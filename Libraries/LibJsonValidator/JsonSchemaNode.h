@@ -334,7 +334,6 @@ public:
     {
     }
 
-    virtual bool validate(const JsonValue&, ValidationError&) const override;
     virtual bool is_null() const override { return true; }
 
 private:
@@ -353,7 +352,6 @@ public:
     {
     }
 
-    virtual bool validate(const JsonValue&, ValidationError&) const override;
     virtual bool is_undefined() const override { return true; }
 
 private:
@@ -490,4 +488,5 @@ private:
     u32 m_min_items = 0;
     bool m_unique_items { false };
 };
+
 }

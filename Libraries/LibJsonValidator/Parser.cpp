@@ -171,6 +171,27 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
     } else if (json_value.is_null()) {
         node = make<NullNode>(parent, "");
 
+    } else if (json_value.is_string()) {
+        auto type_str = json_value.as_string();
+        if (type_str == "string")
+            node = make<StringNode>(parent, "");
+        else if (type_str == "integer" || type_str == "number")
+            node = make<NumberNode>(parent, "");
+        else if (type_str == "boolean")
+            node = make<BooleanNode>(parent, "");
+        else if (type_str == "null")
+            node = make<NullNode>(parent, "");
+        else if (type_str == "array")
+            node = make<ArrayNode>(parent, "");
+        else if (type_str == "object")
+            node = make<ObjectNode>(parent, "");
+
+        if (node) {
+            node->set_type_str(type_str);
+            return node;
+        }
+        return { nullptr };
+
     } else if (json_value.is_object()) {
         auto& json_object = json_value.as_object();
         auto id = json_object.get("$id");
@@ -179,8 +200,15 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         String type_str;
 
         if (type.is_array()) {
-            add_parser_error("multiple types for element not supported.");
+            node = make<UndefinedNode>(parent);
+            for (auto& item : type.as_array().values()) {
+                OwnPtr<JsonSchemaNode> child_node = get_typed_node(item.as_string(), node.ptr());
+                if (child_node)
+                    node->append_any_of(child_node.release_nonnull());
+            }
+            return node;
         }
+
         if (type.is_string()) {
             type_str = type.as_string();
 

@@ -537,16 +537,6 @@ bool BooleanNode::validate(const JsonValue& json, ValidationError&) const
     return json.is_bool();
 }
 
-bool NullNode::validate(const JsonValue& json, ValidationError& e) const
-{
-    return JsonSchemaNode::validate(json, e);
-}
-
-bool UndefinedNode::validate(const JsonValue& json, ValidationError& e) const
-{
-    return JsonSchemaNode::validate(json, e);
-}
-
 String JsonSchemaNode::json_pointer() const
 {
     StringBuilder b;
