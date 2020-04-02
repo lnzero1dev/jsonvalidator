@@ -148,6 +148,14 @@ inline void execute(const String name)
             JsonValidator::ValidationResult vr = validator.run(parser, test_item_obj.get("data"));
 
             bool valid = test_item_obj.get("valid").as_bool();
+
+            if (valid) {
+                EXPECT(!vr.e.errors().size());
+                for (auto& err : vr.e.errors()) {
+                    printf("[E] %s\n", err.characters());
+                }
+            }
+
             if (valid == vr.success)
                 printf("✔\n");
             else {

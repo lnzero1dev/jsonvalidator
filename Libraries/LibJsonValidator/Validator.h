@@ -50,6 +50,13 @@ public:
         add(b.build());
     }
 
+    void append(const ValidationError& e)
+    {
+        for (auto& error : e.errors()) {
+            add(error);
+        }
+    }
+
     const Vector<String>& errors() const { return m_errors; }
 
     bool has_error() const { return m_errors.size(); }

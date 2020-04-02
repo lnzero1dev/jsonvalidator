@@ -362,6 +362,7 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
 #ifdef JSON_SCHEMA_DEBUG
     printf("Validating node: %s (%s)\n", m_id.characters(), class_name());
 #endif
+    calculate_json_pointer();
 
     // check if type is matching
     if (!m_type_str.is_empty() && !validate_type(m_type, json)) {
@@ -371,37 +372,45 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
 
     // check if required is matching
     if (m_required && json.is_undefined()) {
-        e.addf("item %s is required, but is not present (json: %s)", json_pointer().characters(), json.to_string().characters());
+        e.addf("item is required, but is not present at %s, %s", json_pointer().characters(), json.to_string().characters());
         return false;
     }
 
     // run all checks of "allOf" on this node
     bool valid = true;
-    for (auto& item : m_all_of) {
-        valid &= item.validate(json, e);
-    }
 
-    if (m_reference) {
+    for (auto& item : m_all_of)
+        valid &= item.validate(json, e);
+
+    if (m_reference)
         valid &= m_reference->validate(json, e);
-    }
 
     // run all checks of "anyOf" on this node. Valid if one of the any is true.
     bool any = true;
     if (m_any_of.size()) {
         any = false;
+        ValidationError any_of_errors;
         for (auto& item : m_any_of) {
-            any |= item.validate(json, e);
+            any |= item.validate(json, any_of_errors);
         }
+        if (!any)
+            e.addf("not item matched in anyOf at %s, %s", json_pointer().characters(), json.to_string().characters());
     }
 
-    if (m_not)
-        valid &= !(m_not->validate(json, e));
+    if (m_not) {
+        ValidationError not_errors;
+        auto item_valid = !(m_not->validate(json, not_errors));
+        valid &= item_valid;
+        if (!item_valid)
+            e.append(not_errors);
+    }
 
     bool one = true;
     if (m_one_of.size()) {
         one = false;
+        ValidationError one_of_errors;
         for (auto& item : m_one_of) {
-            bool this_one = item.validate(json, e);
+            bool this_one = item.validate(json, one_of_errors);
             if (!one && this_one)
                 one = true;
             else if (one && this_one) {
@@ -409,6 +418,8 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
                 break;
             }
         }
+        if (!one)
+            e.addf("not one item matched in oneOf at %s, %s", json_pointer().characters(), json.to_string().characters());
     }
 
     bool enum_matched = true;
@@ -417,14 +428,18 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
         for (auto& item : m_enum_items) {
             enum_matched |= item.equals(json);
         }
+        if (!enum_matched)
+            e.addf("No enum matched at %s, %s", json_pointer().characters(), json.to_string().characters());
     }
 
     if (json.is_object()) {
         // check for definitions in values.
         // FIXME: Unclear why this is even in the tests... what's the use case for values to have $defs?
         Parser p;
-        if (!p.parse_sub_schema("$defs", json.as_object(), nullptr, [](auto&, auto&&) {}))
-            valid &= false;
+        if (!p.parse_sub_schema("$defs", json.as_object(), nullptr, [](auto&, auto&&) {})) {
+            valid = false;
+            e.addf("Subschema in $defs not valid at %s, %s", json_pointer().characters(), json.to_string().characters());
+        }
     }
 
     return valid & any & one & enum_matched;
@@ -434,50 +449,33 @@ bool StringNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
 
-    if (json.is_string()) {
-        auto value = json.as_string();
+    if (!json.is_string())
+        return valid;
 
-        if (m_pattern.has_value()) {
-            valid &= match_against_pattern(value);
-        }
+    auto value = json.as_string();
 
-        if (m_max_length.has_value()) {
-            valid &= !(value.length() > m_max_length.value());
-        }
+    if (m_pattern.has_value()) {
+        auto item_valid = match_against_pattern(value);
+        valid &= item_valid;
+        if (!item_valid)
+            e.addf("String pattern not matching %s, %s", json_pointer().characters(), json.to_string().characters());
+    }
 
-        if (m_min_length.has_value()) {
-            valid &= !(value.length() < m_min_length.value());
-        }
-    } else if (m_pattern.has_value()) {
-        return true; // non-strings are ignored for pattern!
+    if (m_max_length.has_value()) {
+        auto item_valid = !(value.length() > m_max_length.value());
+        valid &= item_valid;
+        if (!item_valid)
+            e.addf("maxLenght violation at %s, %s", json_pointer().characters(), json.to_string().characters());
+    }
+
+    if (m_min_length.has_value()) {
+        auto item_valid = !(value.length() < m_min_length.value());
+        valid &= item_valid;
+        if (!item_valid)
+            e.addf("minLenght violation at %s, %s", json_pointer().characters(), json.to_string().characters());
     }
 
     return valid;
-}
-
-bool StringNode::match_against_pattern(const String& value) const
-{
-#ifdef __serenity__
-    UNUSED_PARAM(value);
-    if (m_pattern.has_value()) {
-        if (m_pattern.value() == "^.*$") {
-            // FIXME: Match everything, to be replaced with below code from else case when
-            // posix pattern matching implemented
-            return true;
-        }
-    }
-#else
-    int reti = regexec(&m_pattern_regex, value.characters(), 0, NULL, 0);
-    if (!reti) {
-        return true;
-    } else if (reti == REG_NOMATCH) {
-    } else {
-        char buf[100];
-        regerror(reti, &m_pattern_regex, buf, sizeof(buf));
-        fprintf(stderr, "Regex match failed: %s\n", buf);
-    }
-#endif
-    return false;
 }
 
 bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
@@ -487,33 +485,39 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
     if (!json.is_number())
         return valid;
 
-    if (type_str() == "integer" && !(json.is_i32() || json.is_i64() || json.is_u32() || json.is_u64()))
+    if (type_str() == "integer" && !(json.is_i32() || json.is_i64() || json.is_u32() || json.is_u64())) {
+        e.addf("Number is not an integer value at %s, %s", json_pointer().characters(), json.to_string().characters());
         valid = false;
+    }
 
     if (m_minimum.has_value()) {
         if (json.to_number<double>() < m_minimum.value()) {
-            e.addf("Minimum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_minimum.value());
+            e.addf("Minimum invalid: value is %f, allowed is: %f at %s, %s",
+                json.to_number<double>(), m_minimum.value(), json_pointer().characters(), json.to_string().characters());
             valid = false;
         }
     }
 
     if (m_maximum.has_value()) {
         if (json.to_number<double>() > m_maximum.value()) {
-            e.addf("Maximum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_maximum.value());
+            e.addf("Maximum invalid: value is %f, allowed is: %f at %s, %s",
+                json.to_number<double>(), m_maximum.value(), json_pointer().characters(), json.to_string().characters());
             valid = false;
         }
     }
 
     if (m_exclusive_minimum.has_value()) {
         if (json.to_number<double>() <= m_exclusive_minimum.value()) {
-            e.addf("exclusiveMinimum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_exclusive_minimum.value());
+            e.addf("exclusiveMinimum invalid: value is %f, allowed is: %f at %s, %s",
+                json.to_number<double>(), m_exclusive_minimum.value(), json_pointer().characters(), json.to_string().characters());
             valid = false;
         }
     }
 
     if (m_exclusive_maximum.has_value()) {
         if (json.to_number<double>() >= m_exclusive_maximum.value()) {
-            e.addf("exclusiveMaximum invalid: value is %f, allowed is: %f", json.to_number<double>(), m_exclusive_maximum.value());
+            e.addf("exclusiveMaximum invalid: value is %f, allowed is: %f at %s, %s",
+                json.to_number<double>(), m_exclusive_maximum.value(), json_pointer().characters(), json.to_string().characters());
             valid = false;
         }
     }
@@ -521,7 +525,8 @@ bool NumberNode::validate(const JsonValue& json, ValidationError& e) const
     if (m_multiple_of.has_value()) {
         double result = json.to_number<double>() / m_multiple_of.value();
         if ((result - (u64)result) != 0) {
-            e.addf("multipleOf invalid: value is %f, allowed is multipleOf: %f", json.to_number<double>(), m_multiple_of.value());
+            e.addf("multipleOf invalid: value is %f, allowed is multipleOf: %f at %s, %s",
+                json.to_number<double>(), m_multiple_of.value(), json_pointer().characters(), json.to_string().characters());
             valid = false;
         }
     }
@@ -537,31 +542,6 @@ bool BooleanNode::validate(const JsonValue& json, ValidationError&) const
     return json.is_bool();
 }
 
-String JsonSchemaNode::json_pointer() const
-{
-    StringBuilder b;
-    String member_name;
-    if (parent()) {
-        b.append(parent()->json_pointer());
-        if (parent()->type() == InstanceType::Object) {
-            for (auto& item : static_cast<const ObjectNode*>(parent())->properties()) {
-                if (item.value.ptr() == this) {
-                    member_name = item.key;
-                }
-            }
-        }
-    }
-    b.append("/");
-    if (!member_name.is_empty()) {
-        b.appendf("properties/%s[", member_name.characters());
-    }
-    b.appendf("%s", (!id().is_empty() ? id() : to_string(type())).characters());
-    if (!member_name.is_empty()) {
-        b.append("]/");
-    }
-    return b.build();
-}
-
 bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
 {
     bool valid = JsonSchemaNode::validate(json, e);
@@ -575,22 +555,24 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
 
     if (m_min_properties) {
         if (json.as_object().size() < (int)m_min_properties) {
-            e.addf("minProperties value of %i not met with %i items", m_min_properties, json.as_object().size());
-            return false;
+            e.addf("minProperties value of %i not met with %i items at %s, %s",
+                m_min_properties, json.as_object().size(), json_pointer().characters(), json.to_string().characters());
+            valid = false;
         }
     }
 
     if (m_max_properties.has_value())
         if (json.as_object().size() > (int)m_max_properties.value()) {
-            e.addf("maxProperties value of %i not met with %i items", m_max_properties.value(), json.as_object().size());
-            return false;
+            e.addf("maxProperties value of %i not met with %i items at %s, %s",
+                m_max_properties.value(), json.as_object().size(), json_pointer().characters(), json.to_string().characters());
+            valid = false;
         }
 
     // check for missing items
     for (auto& required : m_required) {
         if (!json.as_object().has(required)) {
-            e.addf("required value %s not found at %s", required.characters(), json_pointer().characters());
-            return false;
+            e.addf("required value %s not found at %s, %s", required.characters(), json_pointer().characters(), json.to_string().characters());
+            valid = false;
         }
     }
 
@@ -599,8 +581,8 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
         if (json.as_object().has(required.key)) {
             for (auto& dependency : required.value) {
                 if (!json.as_object().has(dependency)) {
-                    e.addf("dependentRequired dependency %s not found at %s", dependency.characters(), json_pointer().characters());
-                    return false;
+                    e.addf("dependentRequired dependency %s not found at %s, %s", dependency.characters(), json_pointer().characters(), json.to_string().characters());
+                    valid = false;
                 }
             }
         }
@@ -609,7 +591,10 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
     Vector<const JsonSchemaNode*> dependent_schemas_to_apply;
     for (auto& dependent_schema : m_dependent_schemas) {
         if (json.as_object().has(dependent_schema.key)) {
-            valid &= dependent_schema.value->validate(json.as_object(), e);
+            auto item_valid = dependent_schema.value->validate(json.as_object(), e);
+            valid &= item_valid;
+            if (!item_valid)
+                e.addf("dependentSchema not valid at %s, %s", json_pointer().characters(), json.to_string().characters());
         }
     }
 
@@ -617,7 +602,6 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
         // key is in properties
         if (m_properties.contains(key)) {
             auto* property = m_properties.get(key).value();
-            ASSERT(property);
             valid &= property->validate(value, e);
 
         } else {
@@ -630,19 +614,26 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
                 }
             }
 
-            // it's time to check agains additionalProperties, if available
+            // it's time to check against additionalProperties, if available
             if (!match) {
-                if (m_additional_properties)
-                    valid &= m_additional_properties->validate(value, e);
-                else {
-                    e.addf("property %s not in schema definition at %s", key.characters(), json_pointer().characters());
+                if (m_additional_properties) {
+                    auto item_valid = m_additional_properties->validate(value, e);
+                    valid &= item_valid;
+                    if (!item_valid)
+                        e.addf("additionalProperty not valid at %s, %s", json_pointer().characters(), json.to_string().characters());
+
+                } else {
+                    e.addf("property %s not in schema definition at %s, %s", key.characters(), json_pointer().characters(), json.to_string().characters());
                     valid = false;
                 }
             }
         }
 
         if (m_property_names) {
-            valid &= m_property_names->validate(JsonValue(key), e);
+            auto item_valid = m_property_names->validate(JsonValue(key), e);
+            valid &= item_valid;
+            if (!item_valid)
+                e.addf("propertyNames not valid at %s, %s", json_pointer().characters(), json.to_string().characters());
         }
     });
 
@@ -672,6 +663,7 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
     HashMap<u32, bool> hashes;
     bool contains_valid { false };
 
+    ValidationError contains_error;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& value = values[i];
 
@@ -679,8 +671,8 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
         if (m_unique_items) {
             auto hash = value.to_string().impl()->hash();
             if (hashes.get(hash).has_value()) {
-                e.add("duplicate item found, but not allowed due to uniqueItems");
-                return false;
+                e.addf("uniqueItems violation with duplicate item %s at %s, %s", value.to_string().characters(), json_pointer().characters(), json.to_string().characters());
+                valid = false;
             }
             hashes.set(hash, true);
         }
@@ -699,14 +691,130 @@ bool ArrayNode::validate(const JsonValue& json, ValidationError& e) const
         }
 
         if (m_contains && !contains_valid)
-            contains_valid = m_contains->validate(value, e);
+            contains_valid = m_contains->validate(value, contains_error);
     }
 
     if (m_contains) {
         valid &= contains_valid;
+        if (!contains_valid)
+            e.addf("Array contains violation at %s, %s", json_pointer().characters(), json.to_string().characters());
     }
 
     return valid;
 }
 
+String JsonSchemaNode::calculate_json_pointer() const
+{
+
+    if (!parent())
+        return "#";
+
+    StringBuilder b;
+    Optional<String> member_name;
+    Optional<u32> index;
+
+    b.append(parent()->calculate_json_pointer());
+    b.append("/");
+
+    if (parent()->is_object()) {
+        if (m_identified_by_pattern) {
+            b.append("patternProperties");
+            // FIXME: how can we retrieve the current matched value from the actual json value? (it is not possible to store in tree....)
+        } else {
+            auto& parent_object = *static_cast<const ObjectNode*>(parent());
+            for (auto& item : parent_object.properties()) {
+                if (item.value.ptr() == this) {
+                    b.append("properties/");
+                    b.append(item.key);
+                    break;
+                }
+            }
+        }
+
+    } else if (parent()->is_array()) {
+        // search all items and get the index
+        auto& parent_array = *static_cast<const ArrayNode*>(parent());
+        if (parent_array.contains() == this)
+            b.append("contains");
+        else if (parent_array.additional_items() == this)
+            b.append("additionalItems");
+        else if (parent_array.items().size()) {
+            size_t idx = 0;
+            for (auto& item : parent_array.items()) {
+                if (&item == this) {
+                    b.append("items/");
+                    b.append(idx);
+                }
+                ++idx;
+            }
+        }
+    }
+
+    {
+        // search any_of, all_of, ...
+        size_t idx = 0;
+        for (auto& item : parent()->any_of()) {
+            if (&item == this) {
+                b.append("anyOf/");
+                b.append(idx);
+            }
+            ++idx;
+        }
+
+        idx = 0;
+        for (auto& item : parent()->all_of()) {
+            if (&item == this) {
+                b.append("allOf/");
+                b.append(idx);
+            }
+            ++idx;
+        }
+
+        idx = 0;
+        for (auto& item : parent()->one_of()) {
+            if (&item == this) {
+                b.append("oneOf/");
+                b.append(idx);
+            }
+            ++idx;
+        }
+
+        if (parent()->get_not() == this)
+            b.append("not");
+
+        for (auto& item : parent()->defs()) {
+            if (item.value == this) {
+                b.append("$defs/");
+                b.append(item.key);
+            }
+        }
+    }
+
+    return b.build();
+}
+
+bool StringNode::match_against_pattern(const String& value) const
+{
+#ifdef __serenity__
+    UNUSED_PARAM(value);
+    if (m_pattern.has_value()) {
+        if (m_pattern.value() == "^.*$") {
+            // FIXME: Match everything, to be replaced with below code from else case when
+            // posix pattern matching implemented
+            return true;
+        }
+    }
+#else
+    int reti = regexec(&m_pattern_regex, value.characters(), 0, NULL, 0);
+    if (!reti) {
+        return true;
+    } else if (reti == REG_NOMATCH) {
+    } else {
+        char buf[100];
+        regerror(reti, &m_pattern_regex, buf, sizeof(buf));
+        fprintf(stderr, "Regex match failed: %s\n", buf);
+    }
+#endif
+    return false;
+}
 }

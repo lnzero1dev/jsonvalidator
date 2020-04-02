@@ -75,6 +75,13 @@ public:
     void append_one_of(NonnullOwnPtr<JsonSchemaNode>&& node) { m_one_of.append(move(node)); }
     void append_defs(const String& key, NonnullOwnPtr<JsonSchemaNode>&& node) { m_defs.set(key, move(node)); }
     void set_not(NonnullOwnPtr<JsonSchemaNode>&& node) { m_not = move(node); }
+
+    const NonnullOwnPtrVector<JsonSchemaNode>& all_of() const { return m_all_of; }
+    const NonnullOwnPtrVector<JsonSchemaNode>& any_of() const { return m_any_of; }
+    const NonnullOwnPtrVector<JsonSchemaNode>& one_of() const { return m_one_of; }
+    const HashMap<String, NonnullOwnPtr<JsonSchemaNode>>& defs() const { return m_defs; }
+    const OwnPtr<JsonSchemaNode>& get_not() const { return m_not; }
+
     void set_anchors(HashMap<String, JsonSchemaNode*>&& anchors) { m_anchors = move(anchors); }
 
     bool append_enum_item(JsonValue enum_item)
@@ -90,6 +97,7 @@ public:
 
     void compile_pattern(const String pattern)
     {
+        m_identified_by_pattern = true;
         m_pattern = pattern;
 #ifndef __serenity__
         if (regcomp(&m_pattern_regex, pattern.characters(), REG_EXTENDED)) {
@@ -162,9 +170,8 @@ public:
             }
         }
     }
-    void set_root(Badge<Parser>) { m_root = true; }
 
-    String json_pointer() const;
+    void set_root(Badge<Parser>) { m_root = true; }
 
     virtual bool is_object() const { return false; }
     virtual bool is_array() const { return false; }
@@ -179,6 +186,14 @@ public:
     virtual const JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier, const JsonSchemaNode* root_node) const;
 
     const JsonSchemaNode* resolve_reference(const String& ref, const JsonSchemaNode* node) const;
+
+    const String& json_pointer() const
+    {
+        static String s_json_pointer;
+        if (s_json_pointer.is_empty())
+            s_json_pointer = calculate_json_pointer();
+        return s_json_pointer;
+    }
 
 protected:
     JsonSchemaNode() = default;
@@ -197,6 +212,8 @@ protected:
     }
 
 private:
+    String calculate_json_pointer() const;
+
     String m_id;
     InstanceType m_type;
     String m_type_str;
@@ -208,6 +225,7 @@ private:
 #ifndef __serenity__
     regex_t m_pattern_regex;
 #endif
+
     const JsonSchemaNode* m_parent { nullptr };
     const JsonSchemaNode* m_reference { nullptr };
     String m_ref;
@@ -459,7 +477,7 @@ public:
     virtual void resolve_reference(const JsonSchemaNode* root_node) override;
     virtual const JsonSchemaNode* resolve_reference_handle_identifer(const String& identifier, const JsonSchemaNode* root_node) const override;
 
-    const NonnullOwnPtrVector<JsonSchemaNode>& items() { return m_items; }
+    const NonnullOwnPtrVector<JsonSchemaNode>& items() const { return m_items; }
     void append_item(NonnullOwnPtr<JsonSchemaNode>&& item) { m_items.append(move(item)); }
 
     bool unique_items() const { return m_unique_items; }

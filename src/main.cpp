@@ -47,6 +47,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "usage: jsonvalidator <schema-file> <json-file>\n");
         return 0;
     }
+
     auto schema_file = Core::File::construct(argv[1]);
     if (!schema_file->open(Core::IODevice::ReadOnly)) {
         fprintf(stderr, "Couldn't open %s for reading: %s\n", argv[1], schema_file->error_string());
@@ -71,10 +72,11 @@ int main(int argc, char** argv)
     JsonValidator::Parser parser;
     JsonValue parser_result = parser.run(schema_json);
     if (parser_result.is_bool() && parser_result.as_bool()) {
-        fprintf(stdout, "Parsing sucessfull.\n\n");
-        parser.root_node()->dump(0);
+        fprintf(stdout, "Parsing of schema %s sucessfull.\n", argv[1]);
+        //parser.root_node()->dump(0);
 
     } else {
+        fprintf(stdout, "Parsing of schema %s invalid.\n", argv[1]);
         fprintf(stderr, "Parser returned error: %s\n",
             parser_result.to_string().characters());
         return 1;
@@ -86,9 +88,10 @@ int main(int argc, char** argv)
     JsonValidator::ValidationResult r = validator.run(parser, json_file_content);
 
     if (r.success) {
-        fprintf(stdout, "Validation sucessfull.\n\n");
+        fprintf(stdout, "Validation of JSON file %s sucessfull.\n", argv[2]);
 
     } else {
+        fprintf(stdout, "Validation of JSON file %s invalid.\n", argv[2]);
         fprintf(stderr, "Validator returned errors:\n");
         for (auto& value : r.e.errors())
             fprintf(stderr, "%s\n", value.characters());
