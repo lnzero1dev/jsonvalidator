@@ -36,14 +36,16 @@ namespace JsonValidator {
 
 class Parser {
 public:
-    Parser();
-    ~Parser();
+    Parser() = default;
+    ~Parser() = default;
+    Parser(const Parser& other) = delete;
+    Parser& operator=(const Parser& other) = delete;
 
     JsonValue run(const FILE* fd);
-    JsonValue run(const String filename);
+    JsonValue run(const String& filename);
     JsonValue run(const JsonValue& json);
 
-    OwnPtr<JsonSchemaNode>& root_node() { return m_root_node; }
+    const OwnPtr<JsonSchemaNode>& root_node() const { return m_root_node; }
 
     bool parse_sub_schema(const String& property,
         const JsonObject& json_object,
@@ -54,7 +56,7 @@ private:
     OwnPtr<JsonSchemaNode> m_root_node;
     OwnPtr<JsonSchemaNode> get_typed_node(const JsonValue&, JsonSchemaNode* parent = nullptr);
 
-    void add_parser_error(String);
+    void add_parser_error(const String&);
     Vector<String> m_parser_errors;
 
     HashMap<String, JsonSchemaNode*> m_anchors;

@@ -102,6 +102,11 @@ String replace(const String& haystack, const String& needle, const String& repla
     std::string hs(haystack.characters(), haystack.length());
     std::string replaced = std::regex_replace(hs, std::regex(needle.characters()), replacement.characters());
     return replaced.c_str();
+#else
+    UNUSED_PARAM(haystack);
+    UNUSED_PARAM(needle);
+    UNUSED_PARAM(replacement);
+    return "";
 #endif
 }
 
@@ -418,7 +423,7 @@ bool JsonSchemaNode::validate(const JsonValue& json, ValidationError& e) const
 
     // check if required is matching
     if (m_required && json.is_undefined()) {
-        e.addf("item %s is required, but is not present (json: %s)", path().characters(), json.to_string().characters());
+        e.addf("item %s is required, but is not present (json: %s)", json_pointer().characters(), json.to_string().characters());
         return false;
     }
 
@@ -594,12 +599,12 @@ bool UndefinedNode::validate(const JsonValue& json, ValidationError& e) const
     return JsonSchemaNode::validate(json, e);
 }
 
-String JsonSchemaNode::path() const
+String JsonSchemaNode::json_pointer() const
 {
     StringBuilder b;
     String member_name;
     if (parent()) {
-        b.append(parent()->path());
+        b.append(parent()->json_pointer());
         if (parent()->type() == InstanceType::Object) {
             for (auto& item : static_cast<const ObjectNode*>(parent())->properties()) {
                 if (item.value.ptr() == this) {
@@ -646,7 +651,7 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
     // check for missing items
     for (auto& required : m_required) {
         if (!json.as_object().has(required)) {
-            e.addf("required value %s not found at %s", required.characters(), path().characters());
+            e.addf("required value %s not found at %s", required.characters(), json_pointer().characters());
             return false;
         }
     }
@@ -656,7 +661,7 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
         if (json.as_object().has(required.key)) {
             for (auto& dependency : required.value) {
                 if (!json.as_object().has(dependency)) {
-                    e.addf("dependentRequired dependency %s not found at %s", dependency.characters(), path().characters());
+                    e.addf("dependentRequired dependency %s not found at %s", dependency.characters(), json_pointer().characters());
                     return false;
                 }
             }
@@ -692,7 +697,7 @@ bool ObjectNode::validate(const JsonValue& json, ValidationError& e) const
                 if (m_additional_properties)
                     valid &= m_additional_properties->validate(value, e);
                 else {
-                    e.addf("property %s not in schema definition at %s", key.characters(), path().characters());
+                    e.addf("property %s not in schema definition at %s", key.characters(), json_pointer().characters());
                     valid = false;
                 }
             }

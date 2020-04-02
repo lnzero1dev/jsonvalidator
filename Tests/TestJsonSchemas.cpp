@@ -145,7 +145,7 @@ inline void execute(const String name)
                 continue;
             }
 
-            JsonValidator::ValidationResult vr = validator.run(*parser.root_node(), test_item_obj.get("data"));
+            JsonValidator::ValidationResult vr = validator.run(parser, test_item_obj.get("data"));
 
             bool valid = test_item_obj.get("valid").as_bool();
             if (valid == vr.success)

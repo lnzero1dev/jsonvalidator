@@ -26,22 +26,12 @@
 
 #include <LibCore/File.h>
 #include <LibJsonValidator/JsonSchemaNode.h>
+#include <LibJsonValidator/Parser.h>
 #include <LibJsonValidator/Validator.h>
 
 namespace JsonValidator {
 
-ValidationError::ValidationError() {}
-ValidationError::~ValidationError() {}
-
-Validator::Validator()
-{
-}
-
-Validator::~Validator()
-{
-}
-
-ValidationResult Validator::run(const JsonSchemaNode& node, const String filename)
+ValidationResult Validator::run(const Parser& parser, const String& filename)
 {
     ValidationError e;
     auto schema_file = Core::File::construct(filename);
@@ -51,10 +41,10 @@ ValidationResult Validator::run(const JsonSchemaNode& node, const String filenam
     }
     JsonValue json = JsonValue::from_string(schema_file->read_all());
 
-    return run(node, json);
+    return run(parser, json);
 }
 
-ValidationResult Validator::run(const JsonSchemaNode& node, const FILE* fd)
+ValidationResult Validator::run(const Parser& parser, const FILE* fd)
 {
     StringBuilder builder;
     for (;;) {
@@ -66,16 +56,18 @@ ValidationResult Validator::run(const JsonSchemaNode& node, const FILE* fd)
 
     JsonValue json = JsonValue::from_string(builder.to_string());
 
-    return run(node, json);
+    return run(parser, json);
 }
 
-ValidationResult Validator::run(const JsonSchemaNode& node, const JsonValue& json)
+ValidationResult Validator::run(const Parser& parser, const JsonValue& json)
 {
 #ifdef JSON_SCHEMA_DEBUG
     printf("Run Validator on node: %lu\n", reinterpret_cast<intptr_t>(&node));
 #endif
     ValidationError e;
-    bool valid = node.validate(json, e);
+    bool valid { false };
+    if (parser.root_node())
+        valid = parser.root_node()->validate(json, e);
     return { e, valid };
 }
 

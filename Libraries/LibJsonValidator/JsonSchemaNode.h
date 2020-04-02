@@ -167,7 +167,7 @@ public:
     }
     void set_root(Badge<Parser>) { m_root = true; }
 
-    String path() const;
+    String json_pointer() const;
 
     virtual bool is_object() const { return false; }
     virtual bool is_array() const { return false; }

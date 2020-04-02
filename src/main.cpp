@@ -83,7 +83,7 @@ int main(int argc, char** argv)
     auto json_file_content = JsonValue::from_string(json_file->read_all());
 
     JsonValidator::Validator validator;
-    JsonValidator::ValidationResult r = validator.run(*parser.root_node(), json_file_content);
+    JsonValidator::ValidationResult r = validator.run(parser, json_file_content);
 
     if (r.success) {
         fprintf(stdout, "Validation sucessfull.\n\n");

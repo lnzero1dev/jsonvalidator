@@ -34,8 +34,8 @@ namespace JsonValidator {
 
 class ValidationError {
 public:
-    ValidationError();
-    ~ValidationError();
+    ValidationError() = default;
+    ~ValidationError() = default;
 
     void add(const String& error)
     {
@@ -65,12 +65,12 @@ struct ValidationResult {
 
 class Validator {
 public:
-    Validator();
-    ~Validator();
+    Validator() = default;
+    ~Validator() = default;
 
-    ValidationResult run(const JsonSchemaNode&, const FILE* fd);
-    ValidationResult run(const JsonSchemaNode&, const String file_name);
-    ValidationResult run(const JsonSchemaNode&, const JsonValue& json);
+    ValidationResult run(const Parser&, const FILE* fd);
+    ValidationResult run(const Parser&, const String& filename);
+    ValidationResult run(const Parser&, const JsonValue& json);
 };
 
 }

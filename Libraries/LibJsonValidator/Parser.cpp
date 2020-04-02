@@ -34,14 +34,6 @@
 
 namespace JsonValidator {
 
-Parser::Parser()
-{
-}
-
-Parser::~Parser()
-{
-}
-
 JsonValue Parser::run(const FILE* fd)
 {
     StringBuilder builder;
@@ -57,7 +49,7 @@ JsonValue Parser::run(const FILE* fd)
     return run(schema_json);
 }
 
-JsonValue Parser::run(const String filename)
+JsonValue Parser::run(const String& filename)
 {
     auto schema_file = Core::File::construct(filename);
     if (!schema_file->open(Core::IODevice::ReadOnly)) {
@@ -84,7 +76,7 @@ JsonValue Parser::run(const JsonValue& json)
         add_parser_error("root json instance not of type object");
     }
 
-    auto json_object = json.as_object();
+    auto& json_object = json.as_object();
 
     // FIXME: Here, we should load the file given in $schema, and check the $id in the root. This will provide the actual schema version used, that could be located anywhere.
     static String known_schema = "https://json-schema.org/draft/2019-09/schema";
@@ -112,7 +104,7 @@ JsonValue Parser::run(const JsonValue& json)
     return JsonValue(true);
 }
 
-void Parser::add_parser_error(String error)
+void Parser::add_parser_error(const String& error)
 {
     m_parser_errors.append(error);
 }
@@ -127,7 +119,7 @@ bool Parser::parse_sub_schema(const String& property,
 
     auto property_value = json_object.get_or(property, JsonArray());
     if (property_value.is_array()) {
-        JsonArray property_array = property_value.as_array();
+        auto& property_array = property_value.as_array();
         for (auto& item : property_array.values()) {
             OwnPtr<JsonSchemaNode> child_node = get_typed_node(item, node);
             if (child_node)
@@ -138,9 +130,11 @@ bool Parser::parse_sub_schema(const String& property,
             }
         }
         return true;
-    } else if (property_value.is_object()) {
+    }
+
+    if (property_value.is_object()) {
         bool result = true;
-        JsonObject property_object = property_value.as_object();
+        auto& property_object = property_value.as_object();
         property_object.for_each_member([&](auto& key, auto& value) {
             OwnPtr<JsonSchemaNode> child_node = get_typed_node(value, node);
             if (child_node) {
@@ -162,7 +156,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
 
     if (json_value.is_array()) {
         node = make<ArrayNode>(parent, "");
-        ArrayNode& array_node = *static_cast<ArrayNode*>(node.ptr());
+        auto& array_node = *static_cast<ArrayNode*>(node.ptr());
 
         for (auto& item : json_value.as_array().values()) {
             ASSERT(item.is_object());
@@ -178,13 +172,9 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
         node = make<NullNode>(parent, "");
 
     } else if (json_value.is_object()) {
-        JsonObject json_object = json_value.as_object();
-        JsonValue id = json_object.get("$id");
-        JsonValue type = json_object.get("type");
-        JsonValue ref = json_object.get("$ref");
-        JsonValue default_value = json_object.get("default");
-        JsonValue enum_value = json_object.get("enum");
-        JsonValue const_value = json_object.get("const");
+        auto& json_object = json_value.as_object();
+        auto id = json_object.get("$id");
+        auto type = json_object.get("type");
 
         String type_str;
 
@@ -237,7 +227,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             }
 
             if (json_object.has("multipleOf")) {
-                double number = json_object.get("multipleOf").to_number<double>();
+                auto number = json_object.get("multipleOf").to_number<double>();
                 if (number > 0)
                     number_node.set_multiple_of(number);
             }
@@ -254,7 +244,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
             || json_object.has("minContains")) {
 
             node = make<ArrayNode>(parent, id.as_string_or(""));
-            ArrayNode& array_node = *static_cast<ArrayNode*>(node.ptr());
+            auto& array_node = *static_cast<ArrayNode*>(node.ptr());
 
             auto min_items = json_object.get("minItems");
             if (min_items.is_number()) {
@@ -295,13 +285,13 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 }
 
                 if (items.is_object()) {
-                    JsonObject items_object = items.as_object();
+                    auto& items_object = items.as_object();
                     OwnPtr<JsonSchemaNode> child_node = get_typed_node(items_object, node.ptr());
                     if (child_node)
                         array_node.append_item(child_node.release_nonnull());
                 } else if (items.is_array()) {
                     array_node.set_items_is_array(true);
-                    JsonArray items_array = items.as_array();
+                    auto& items_array = items.as_array();
                     for (auto& item : items_array.values()) {
                         ASSERT(item.is_object() || item.is_bool());
                         OwnPtr<JsonSchemaNode> child_node = get_typed_node(item, node.ptr());
@@ -363,7 +353,7 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 || json_object.has("dependentSchemas")) {
 
                 node = make<ObjectNode>(parent, id.as_string_or(""));
-                ObjectNode& obj_node = *static_cast<ObjectNode*>(node.ptr());
+                auto& obj_node = *static_cast<ObjectNode*>(node.ptr());
 
                 auto properties = json_object.get_or("properties", JsonObject());
                 if (!properties.is_object()) {
@@ -493,13 +483,17 @@ OwnPtr<JsonSchemaNode> Parser::get_typed_node(const JsonValue& json_value, JsonS
                 node->append_defs(key, move(child_node));
             });
 
+            auto ref = json_object.get("$ref");
             if (ref.is_string() && !ref.as_string().is_empty()) {
                 node->set_ref(ref.as_string());
             }
 
+            auto default_value = json_object.get("default");
             if (!default_value.is_undefined())
                 node->set_default_value(default_value);
 
+            auto enum_value = json_object.get("enum");
+            auto const_value = json_object.get("const");
             if (enum_value.is_array()) {
                 for (auto& item : enum_value.as_array().values()) {
                     if (!node->append_enum_item(item)) {
